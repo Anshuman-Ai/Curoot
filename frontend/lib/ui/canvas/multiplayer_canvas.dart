@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../state/canvas_provider.dart';
 import 'edge_painter.dart';
 import 'node_widget.dart';
+import '../panels/left_panel.dart';
+import '../panels/right_panel.dart';
 
 class MultiplayerCanvas extends ConsumerStatefulWidget {
   const MultiplayerCanvas({super.key});
@@ -180,7 +182,7 @@ class _MultiplayerCanvasState extends ConsumerState<MultiplayerCanvas> with Sing
           
           // UI Overlays
           Positioned(
-            right: 24,
+            right: 344, // 320 (RightPanel width) + 24
             bottom: 24,
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -202,6 +204,22 @@ class _MultiplayerCanvasState extends ConsumerState<MultiplayerCanvas> with Sing
                 ),
               ],
             ),
+          ),
+
+          // Left Navigation Panel
+          const Positioned(
+            left: 0,
+            top: 0,
+            bottom: 0,
+            child: SafeArea(child: LeftPanel()),
+          ),
+
+          // Right AI Tradeoffs Panel
+          const Positioned(
+            right: 0,
+            top: 0,
+            bottom: 0,
+            child: SafeArea(child: RightPanel()),
           ),
         ],
       ),
