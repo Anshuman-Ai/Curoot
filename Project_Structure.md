@@ -38,8 +38,8 @@ This document defines the monorepo file architecture for the platform. The syste
 │   │   ├── modals/
 │   │   │   └── add_node_modal.dart     # The [+] unified search/invite modal
 │   │   ├── panels/
-│   │   │   ├── macro_environment.dart  # Real-time abstract risk sidebar
-│   │   │   └── tradeoffs_tab.dart      # Carbon/Time/Cost comparison UI
+│   │   │   ├── left_panel.dart  # side bar icon tray cum left panel sidebar
+│   │   │   └── right_panel.dart      # Realtime AI Tradeoffs and Risk comparison UI
 │   │   └── auth/
 │   └── pubspec.yaml
 /backend
