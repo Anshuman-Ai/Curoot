@@ -165,6 +165,34 @@ class LoginPage extends StatelessWidget {
                         ),
                       ),
                     ),
+                    const SizedBox(height: 16),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 48,
+                      child: TextButton(
+                        onPressed: () {
+                          Navigator.of(context).pushReplacement(
+                            MaterialPageRoute(
+                              builder: (context) => const MultiplayerCanvas(),
+                            ),
+                          );
+                        },
+                        style: TextButton.styleFrom(
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(6),
+                            side: const BorderSide(color: Color(0xFF424242)),
+                          ),
+                        ),
+                        child: const Text(
+                          'Developer Canvas Bypass',
+                          style: TextStyle(
+                            color: Colors.grey,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ),
                     const SizedBox(height: 32),
 
                     RichText(
