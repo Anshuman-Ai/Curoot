@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 
 import '../canvas/multiplayer_canvas.dart';
-import 'signup_page.dart';
+import 'login_page.dart';
 
-class LoginPage extends StatelessWidget {
-  const LoginPage({super.key});
+class SignupPage extends StatelessWidget {
+  const SignupPage({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -19,12 +19,12 @@ class LoginPage extends StatelessWidget {
             ),
           ),
 
-          // Main Login Card Center
+          // Main Signup Card Center
           Center(
             child: SingleChildScrollView(
               child: Container(
                 width: 360, // max width to maintain aspect
-                padding: const EdgeInsets.symmetric(horizontal: 36.0, vertical: 40.0),
+                padding: const EdgeInsets.symmetric(horizontal: 32.0, vertical: 32.0),
                 decoration: BoxDecoration(
                   color: const Color(0xFF161616),
                   borderRadius: BorderRadius.circular(16),
@@ -61,22 +61,28 @@ class LoginPage extends StatelessWidget {
                         letterSpacing: 0.2,
                       ),
                     ),
-                    const SizedBox(height: 40),
+                    const SizedBox(height: 24),
+
+                    _buildTextField(
+                      label: 'FULL NAME',
+                      hint: 'Jane Doe',
+                      obscureText: false,
+                    ),
+                    const SizedBox(height: 16),
 
                     _buildTextField(
                       label: 'CORPORATE EMAIL',
                       hint: 'name@company.com',
                       obscureText: false,
                     ),
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 16),
 
                     _buildTextField(
                       label: 'PASSWORD',
                       hint: '••••••••',
                       obscureText: true,
-                      rightLabel: 'Forgot Access?',
                     ),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 20),
 
                     SizedBox(
                       width: double.infinity,
@@ -109,7 +115,7 @@ class LoginPage extends StatelessWidget {
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               Text(
-                                'Sign In',
+                                'Create Account',
                                 style: TextStyle(
                                   color: Colors.white,
                                   fontWeight: FontWeight.w600,
@@ -123,7 +129,7 @@ class LoginPage extends StatelessWidget {
                         ),
                       ),
                     ),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 16),
 
                     const Row(
                       children: [
@@ -143,7 +149,7 @@ class LoginPage extends StatelessWidget {
                         Expanded(child: Divider(color: Color(0xFF424242))),
                       ],
                     ),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 16),
 
                     SizedBox(
                       width: double.infinity,
@@ -157,7 +163,7 @@ class LoginPage extends StatelessWidget {
                           ),
                         ),
                         child: const Text(
-                          'Login with Google',
+                          'Sign up with Google',
                           style: TextStyle(
                             color: Colors.white,
                             fontSize: 14,
@@ -174,7 +180,7 @@ class LoginPage extends StatelessWidget {
                         onPressed: () {
                           Navigator.of(context).pushReplacement(
                             MaterialPageRoute(
-                              builder: (context) => const SignupPage(),
+                              builder: (context) => const LoginPage(),
                             ),
                           );
                         },
@@ -185,7 +191,7 @@ class LoginPage extends StatelessWidget {
                           ),
                         ),
                         child: const Text(
-                          'Don\'t have an account? Sign Up',
+                          'Already have an account? Sign In',
                           style: TextStyle(
                             color: Colors.grey,
                             fontSize: 14,
@@ -194,7 +200,7 @@ class LoginPage extends StatelessWidget {
                         ),
                       ),
                     ),
-                    const SizedBox(height: 32),
+                    const SizedBox(height: 20),
 
                     RichText(
                       textAlign: TextAlign.center,
@@ -205,9 +211,17 @@ class LoginPage extends StatelessWidget {
                           height: 1.6,
                         ),
                         children: [
-                          const TextSpan(text: 'Access is restricted to authorized personnel.\nBy logging in, you agree to our '),
+                          const TextSpan(text: 'By creating an account, you agree to our\n'),
                           TextSpan(
-                            text: 'Data Security Protocols',
+                            text: 'Terms of Service',
+                            style: TextStyle(
+                              color: Colors.grey[300],
+                              decoration: TextDecoration.underline,
+                            ),
+                          ),
+                          const TextSpan(text: ' and '),
+                          TextSpan(
+                            text: 'Privacy Policy',
                             style: TextStyle(
                               color: Colors.grey[300],
                               decoration: TextDecoration.underline,
@@ -273,7 +287,7 @@ class LoginPage extends StatelessWidget {
               ),
           ],
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 6),
         SizedBox(
           height: 48,
           child: TextField(
