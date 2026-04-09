@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../canvas/add_node_panel.dart';
 
 enum LeftPanelTab { none, profile, home, upload, addNode, search, settings }
 
@@ -12,7 +13,8 @@ class LeftPanelTabNotifier extends Notifier<LeftPanelTab> {
   }
 }
 
-final leftPanelTabProvider = NotifierProvider<LeftPanelTabNotifier, LeftPanelTab>(() {
+final leftPanelTabProvider =
+    NotifierProvider<LeftPanelTabNotifier, LeftPanelTab>(() {
   return LeftPanelTabNotifier();
 });
 
@@ -31,100 +33,104 @@ class LeftPanel extends ConsumerWidget {
       decoration: BoxDecoration(
         color: const Color(0xFF161618), // Dark charcoal
         border: Border(
-          right: BorderSide(color: Colors.white.withValues(alpha: 0.1), width: 1),
+          right:
+              BorderSide(color: Colors.white.withValues(alpha: 0.1), width: 1),
         ),
       ),
       child: ClipRect(
         child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Icon Tray
-              SizedBox(
-                width: 60,
-                child: Column(
-                  children: [
-                    const SizedBox(height: 24),
-                    _TrayIcon(
-                      icon: Icons.person_outline,
-                      tab: LeftPanelTab.profile,
-                      activeTab: activeTab,
-                    ),
-                    const SizedBox(height: 16),
-                    _TrayIcon(
-                      icon: Icons.home_outlined,
-                      tab: LeftPanelTab.home,
-                      activeTab: activeTab,
-                    ),
-                    const SizedBox(height: 16),
-                    _TrayIcon(
-                      icon: Icons.file_upload_outlined,
-                      tab: LeftPanelTab.upload,
-                      activeTab: activeTab,
-                    ),
-                    const SizedBox(height: 16),
-                    _TrayIcon(
-                      icon: Icons.add_circle_outline,
-                      tab: LeftPanelTab.addNode,
-                      activeTab: activeTab,
-                    ),
-                    const SizedBox(height: 16),
-                    _TrayIcon(
-                      icon: Icons.search,
-                      tab: LeftPanelTab.search,
-                      activeTab: activeTab,
-                    ),
-                    const Spacer(),
-                    _TrayIcon(
-                      icon: Icons.settings_outlined,
-                      tab: LeftPanelTab.settings,
-                      activeTab: activeTab,
-                    ),
-                    const SizedBox(height: 24),
-                  ],
-                ),
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Icon Tray
+            SizedBox(
+              width: 60,
+              child: Column(
+                children: [
+                  const SizedBox(height: 24),
+                  _TrayIcon(
+                    icon: Icons.person_outline,
+                    tab: LeftPanelTab.profile,
+                    activeTab: activeTab,
+                  ),
+                  const SizedBox(height: 16),
+                  _TrayIcon(
+                    icon: Icons.home_outlined,
+                    tab: LeftPanelTab.home,
+                    activeTab: activeTab,
+                  ),
+                  const SizedBox(height: 16),
+                  _TrayIcon(
+                    icon: Icons.file_upload_outlined,
+                    tab: LeftPanelTab.upload,
+                    activeTab: activeTab,
+                  ),
+                  const SizedBox(height: 16),
+                  _TrayIcon(
+                    icon: Icons.add_circle_outline,
+                    tab: LeftPanelTab.addNode,
+                    activeTab: activeTab,
+                  ),
+                  const SizedBox(height: 16),
+                  _TrayIcon(
+                    icon: Icons.search,
+                    tab: LeftPanelTab.search,
+                    activeTab: activeTab,
+                  ),
+                  const Spacer(),
+                  _TrayIcon(
+                    icon: Icons.settings_outlined,
+                    tab: LeftPanelTab.settings,
+                    activeTab: activeTab,
+                  ),
+                  const SizedBox(height: 24),
+                ],
               ),
+            ),
 
-              // Expanded Content Area
-              if (isExpanded)
-                Expanded(
-                  child: Container(
-                    decoration: BoxDecoration(
-                      border: Border(
-                        left: BorderSide(
-                          color: Colors.white.withValues(alpha: 0.05),
-                          width: 1,
-                        ),
+            // Expanded Content Area
+            if (isExpanded)
+              Expanded(
+                child: Container(
+                  decoration: BoxDecoration(
+                    border: Border(
+                      left: BorderSide(
+                        color: Colors.white.withValues(alpha: 0.05),
+                        width: 1,
                       ),
                     ),
-                    child: ClipRect(
-                      child: OverflowBox(
-                        alignment: Alignment.topLeft,
-                        minWidth: 239.0,
-                        maxWidth: 239.0,
-                        child: Stack(
-                          children: [
-                            Positioned.fill(
-                              child: _buildExpandedContent(activeTab),
+                  ),
+                  child: ClipRect(
+                    child: OverflowBox(
+                      alignment: Alignment.topLeft,
+                      minWidth: 239.0,
+                      maxWidth: 239.0,
+                      child: Stack(
+                        children: [
+                          Positioned.fill(
+                            child: _buildExpandedContent(activeTab),
+                          ),
+                          Positioned(
+                            top: 8,
+                            right: 8,
+                            child: IconButton(
+                              icon: const Icon(Icons.close,
+                                  size: 20, color: Colors.white54),
+                              onPressed: () {
+                                ref
+                                    .read(leftPanelTabProvider.notifier)
+                                    .setTab(LeftPanelTab.none);
+                              },
                             ),
-                            Positioned(
-                              top: 8,
-                              right: 8,
-                              child: IconButton(
-                                icon: const Icon(Icons.close, size: 20, color: Colors.white54),
-                                onPressed: () {
-                                  ref.read(leftPanelTabProvider.notifier).setTab(LeftPanelTab.none);
-                                },
-                              ),
-                            )
-                          ],
-                        ),
+                          )
+                        ],
                       ),
                     ),
                   ),
                 ),
-            ],
-          ),
+              ),
+          ],
         ),
+      ),
     );
   }
 
@@ -137,7 +143,7 @@ class LeftPanel extends ConsumerWidget {
       case LeftPanelTab.upload:
         return const _PanelPlaceholder(title: 'Upload/Share');
       case LeftPanelTab.addNode:
-        return const _PanelPlaceholder(title: 'Add Node', subtitle: 'Discovery & Onboarding workflow');
+        return const AddNodePanel();
       case LeftPanelTab.search:
         return const _PanelPlaceholder(title: 'Search');
       case LeftPanelTab.settings:
@@ -189,8 +195,7 @@ class _TrayIcon extends ConsumerWidget {
 
 class _PanelPlaceholder extends StatelessWidget {
   final String title;
-  final String? subtitle;
-  const _PanelPlaceholder({required this.title, this.subtitle});
+  const _PanelPlaceholder({required this.title});
 
   @override
   Widget build(BuildContext context) {
@@ -209,7 +214,7 @@ class _PanelPlaceholder extends StatelessWidget {
           ),
           const SizedBox(height: 16),
           Text(
-            subtitle ?? 'Placeholder content for $title.',
+            'Placeholder content for $title.',
             style: const TextStyle(color: Colors.white54),
           ),
         ],

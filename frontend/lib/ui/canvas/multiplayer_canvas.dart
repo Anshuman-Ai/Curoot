@@ -162,7 +162,12 @@ class _MultiplayerCanvasState extends ConsumerState<MultiplayerCanvas> with Sing
                       top: node.position.dy - (widgetHeight / 2),
                       child: NodeWidget(
                         node: node,
-                        onTap: () => _panToNode(node.position),
+                        onTap: () {
+                          _panToNode(node.position);
+                          if (node.type == NodeType.add) {
+                            ref.read(leftPanelTabProvider.notifier).setTab(LeftPanelTab.addNode);
+                          }
+                        },
                         onPanUpdate: (details) {
                           final scale = _transformationController.value.getMaxScaleOnAxis();
                           final dx = details.delta.dx / scale;
