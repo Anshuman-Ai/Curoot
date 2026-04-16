@@ -1,150 +1,314 @@
-# 🗄️ Database Schema & Relational Source of Truth
-**Project Context:** Figma for Supply Chain / Resilient Logistics (Credible Create)
-**Database:** PostgreSQL 16 (Hosted on Supabase Cloud)
-**Important IDE Directive:** DO NOT generate SQL `CREATE TABLE` statements. The database is already built. Use this document strictly for writing `supabase-js` client queries, TypeScript types, and understanding relations.
+Figma for Supply Chain Platform — Database Relationships
+Version: 1.0.0
+Status: Production Ready
 
----
+1. Overview
 
-## 🛑 STRICT AI IDE RULES
-1. **Never Hallucinate Tables:** Only query the tables listed in this document. 
-2. **Respect Enums:** Only use the exact string values defined in the Enums section.
-3. **RLS is Active:** Do not write application logic to filter by `organization_id` if RLS already handles it.
-4. **Soft Deletes:** Tables with `deleted_at` should be queried with `.is('deleted_at', null)`.
-5. **UUIDs:** Primary keys are UUIDs (`gen_random_uuid()`).
+This document defines all relational mappings, cardinality, and data flow dependencies across the PostgreSQL schema.
 
----
+The system follows a multi-tenant, graph-based architecture with strict 1-Hop data isolation, enforced through:
 
-## 1️⃣ Enums (Allowed Values)
-* `org_tier_enum`: 'enterprise', 'growth', 'startup'
-* `node_status_enum`: 'active', 'pending', 'faded', 'delayed', 'suspended', 'inactive'
-* `node_type_enum`: 'oem', 'tier1_supplier', 'tier2_supplier', 'logistics_provider', 'distribution_center', 'customs_broker', 'port_authority', 'end_customer'
-* `connection_type_enum`: 'upstream', 'downstream', 'logistics', 'peer'
-* `ingestion_track_enum`: 'cold_start', 'continuous_sync', 'modern_push'
-* `disruption_severity_enum`: 'critical', 'high', 'medium', 'low', 'resolved'
-* `rfp_status_enum`: 'draft', 'sent', 'acknowledged', 'confirmed', 'rejected', 'expired'
-* `tradeoff_metric_enum`: 'financial_cost', 'time_latency', 'carbon_footprint', 'historical_reliability'
+Foreign key constraints
+Row-Level Security (RLS)
+No cross-org joins for deeper tiers
+2. Core Design Principles
+2.1 Multi-Tenancy
+Root table: organizations
+Every table includes organization_id
+Enforced via RLS
+2.2 Graph Model
+Nodes → supply_chain_nodes
+Edges → node_edges
+Directed relationships only
+2.3 1-Hop Isolation
+No direct FK to Tier-2+ suppliers
+Upstream data passed via:
+abstracted_payload (JSONB)
+2.4 Soft Delete Pattern
+deleted_at IS NULL → active records
+3. High-Level Domain Relationships
+organizations
+│
+├── organization_members
+├── supply_chain_nodes
+│   ├── node_edges
+│   ├── telemetry_events
+│   ├── disruption_alerts
+│   ├── node_invitations
+│   └── rfp_requests
+│
+├── community_templates
+│   └── template_nodes
+│
+├── ingestion_jobs
+│   └── mcp_containers
+│
+├── tradeoff_analyses
+│   └── tradeoff_metrics
+│
+├── messages
+├── communication_logs
+└── audit.audit_log
+4. Entity Relationships (Detailed)
+4.1 organizations (Root Entity)
 
----
+Primary Key: id
 
-## 2️⃣ Core Tables & Relations
+Relationships:
+1 → N organization_members
+1 → N supply_chain_nodes
+1 → N node_edges
+1 → N ingestion_jobs
+1 → N rfp_requests
+1 → N tradeoff_analyses
+1 → N messages
+1 → N communication_logs
+4.2 organization_members
 
-### `organizations`
-* **id** (UUID, PK)
-* **name** (String)
-* **slug** (String, Unique)
-* **org_tier** (Enum: org_tier_enum)
-* **settings** (JSONB)
-* **RLS:** Users can only view their own org OR orgs they share an active edge with (1-Hop).
+FKs:
 
-### `organization_members`
-* **id** (UUID, PK)
-* **organization_id** (UUID, FK -> organizations)
-* **user_id** (UUID, FK -> Supabase auth.users)
-* **role** (String)
-* **Relations:** One `organization` has many `organization_members`.
+organization_id → organizations.id
 
-### `supply_chain_nodes` (The Canvas Entities)
-* **id** (UUID, PK)
-* **organization_id** (UUID, FK -> organizations)
-* **display_name** (String)
-* **node_type** (Enum: node_type_enum)
-* **node_status** (Enum: node_status_enum)
-* **opacity** (Numeric: 0.250 to 1.000) - *Managed by DB Trigger*
-* **location** (PostGIS Geography Point)
-* **partner_org_id** (UUID, Nullable FK -> organizations)
-* **metadata** (JSONB)
-* **cached_alternatives** (JSONB)
-* **RLS:** Only visible to the owning `organization_id`.
+Cardinality:
 
-### `node_edges` (The Connections)
-* **id** (UUID, PK)
-* **organization_id** (UUID, FK -> organizations)
-* **source_node_id** (UUID, FK -> supply_chain_nodes)
-* **target_node_id** (UUID, FK -> supply_chain_nodes)
-* **connection_type** (Enum: connection_type_enum)
-* **lead_time_hours** (Numeric)
-* **RLS:** Only visible to the owning `organization_id`. 
-* **Rule:** DB Trigger prevents edges between unowned nodes.
+Many members belong to one organization
+A user can belong to multiple organizations
+4.3 supply_chain_nodes (Core Graph Node)
 
-### `community_templates`
-* **id** (UUID, PK)
-* **published_by_org** (UUID, FK -> organizations)
-* **title** (String)
-* **category_tags** (String[])
-* **region_tags** (String[])
-* **schema_version** (String)
+FKs:
 
-### `rfp_requests`
-* **id** (UUID, PK)
-* **organization_id** (UUID, FK -> organizations)
-* **target_node_id** (UUID, FK -> supply_chain_nodes)
-* **status** (Enum: rfp_status_enum)
-* **rfp_payload** (JSONB)
+organization_id → organizations.id
+partner_org_id → organizations.id (nullable)
 
-### `mcp_containers`
-* **id** (UUID, PK)
-* **organization_id** (UUID, FK -> organizations)
-* **ingestion_track** (Enum: ingestion_track_enum)
-* **erp_system_name** (String)
-* **status** (String)
+Relationships:
 
----
+1 → N node_edges (as source)
+1 → N node_edges (as target)
+1 → N telemetry_events
+1 → N disruption_alerts
+1 → N node_invitations
+1 → N rfp_requests
+4.4 node_edges (Graph Edges)
 
-## 3️⃣ Time-Series & Analytics (Partitioned)
-*IDE Note: Do not write queries that attempt to update/delete massive amounts of rows here. These are append-heavy.*
+FKs:
 
-### `telemetry_events` (Partitioned by Month)
-* **id** (UUID, PK)
-* **recorded_at** (TIMESTAMPTZ, PK)
-* **node_id** (UUID, FK -> supply_chain_nodes)
-* **organization_id** (UUID, FK -> organizations)
-* **event_type** (String)
-* **status** (Enum: node_status_enum)
-* **payload** (JSONB)
+organization_id → organizations.id
+source_node_id → supply_chain_nodes.id
+target_node_id → supply_chain_nodes.id
 
-### `analytics.mv_node_reliability_30d` (Materialized View)
-* **node_id** (UUID)
-* **total_events** (Int)
-* **disruption_events** (Int)
-* **reliability_score** (Numeric)
-* **Note:** Read-only view refreshed hourly via `pg_cron`. Do not write `INSERT/UPDATE` queries to this.
+Cardinality:
 
----
+Many edges per node
+Directed relationship
 
-## 4️⃣ Disruptions & Tradeoffs
+Constraints:
 
-### `disruption_alerts`
-* **id** (UUID, PK)
-* **title** (String)
-* **severity** (Enum: disruption_severity_enum)
-* **affected_region** (PostGIS Geography Polygon)
+No self-loop (source != target)
+Unique edge per (source, target, type)
+4.5 community_templates
 
-### `tradeoff_metrics`
-* **id** (UUID, PK)
-* **analysis_id** (UUID, FK -> tradeoff_analyses)
-* **candidate_node_id** (UUID, FK -> supply_chain_nodes)
-* **metric_type** (Enum: tradeoff_metric_enum)
-* **score_value** (Numeric)
+FKs:
 
----
+published_by_org → organizations.id
 
-## 💡 Common Supabase Query Patterns for this Schema
+Relationships:
 
-**1. Fetch Canvas Graph (Nodes + Edges):**
-```typescript
-const { data: nodes } = await supabase
-  .from('supply_chain_nodes')
-  .select('*, node_edges!source_node_id(*)')
-  .is('deleted_at', null);
-2. Insert Telemetry (Append Only):
+1 → N template_nodes
+1 → N rfp_requests
+4.6 template_nodes
 
-TypeScript
-const { error } = await supabase
-  .from('telemetry_events')
-  .insert({
-    node_id: 'uuid',
-    organization_id: 'uuid',
-    event_type: 'latency_spike',
-    status: 'delayed',
-    source: 'mcp_sync'
-  });
+FKs:
+
+template_id → community_templates.id
+
+Purpose:
+
+Defines node structure inside templates
+4.7 node_invitations
+
+FKs:
+
+organization_id → organizations.id
+target_node_id → supply_chain_nodes.id
+accepted_org_id → organizations.id
+
+Lifecycle Flow:
+
+Invite Created → Accepted → Organization Created → Node Activated
+4.8 rfp_requests
+
+FKs:
+
+organization_id → organizations.id
+target_node_id → supply_chain_nodes.id
+template_id → community_templates.id
+
+Constraints:
+
+Max 2 submissions/day per node
+Cooldown enforced
+4.9 ingestion_jobs
+
+FKs:
+
+organization_id → organizations.id
+
+Relationships:
+
+1 → 1 mcp_containers
+4.10 mcp_containers
+
+FKs:
+
+organization_id → organizations.id (UNIQUE)
+ingestion_job_id → ingestion_jobs.id
+
+Cardinality:
+
+One container per organization
+4.11 telemetry_events (Time-Series)
+
+FKs:
+
+node_id → supply_chain_nodes.id
+organization_id → organizations.id
+
+Characteristics:
+
+Partitioned by recorded_at
+High-volume append-only
+4.12 disruption_alerts
+
+FKs:
+
+node_id → supply_chain_nodes.id (nullable)
+edge_id → node_edges.id (nullable)
+organization_id → organizations.id
+
+Rule:
+
+Either node_id OR edge_id must exist
+4.13 macro_environment_signals
+
+No direct FK relationships
+
+Linked logically via:
+
+country_code
+4.14 tradeoff_analyses
+
+FKs:
+
+organization_id → organizations.id
+current_node_id → supply_chain_nodes.id
+alternative_node_id → supply_chain_nodes.id
+disruption_alert_id → disruption_alerts.id
+
+Relationships:
+
+1 → N tradeoff_metrics
+4.15 tradeoff_metrics
+
+FKs:
+
+analysis_id → tradeoff_analyses.id
+
+Constraint:
+
+One row per metric type per analysis
+4.16 messages
+
+FKs:
+
+sender_org_id → organizations.id
+recipient_org_id → organizations.id
+node_id → supply_chain_nodes.id (optional)
+4.17 communication_logs
+
+FKs:
+
+organization_id → organizations.id
+target_node_id → supply_chain_nodes.id
+message_id → messages.id
+
+Nature:
+
+Immutable (append-only)
+4.18 audit.audit_log
+
+FKs (logical, not enforced):
+
+record_id → any table
+changed_by_org → organizations.id
+
+Characteristics:
+
+Partitioned
+Append-only
+Regulatory retention (7 years)
+5. Critical Relationship Patterns
+5.1 Graph Traversal
+supply_chain_nodes
+    ↓
+node_edges (source → target)
+    ↓
+supply_chain_nodes
+
+Used for:
+
+Route discovery
+Dependency mapping
+Risk propagation
+5.2 Event Flow
+telemetry_events
+    ↓
+disruption_alerts
+    ↓
+tradeoff_analyses
+    ↓
+tradeoff_metrics
+5.3 Onboarding Flow
+community_templates
+    ↓
+template_nodes
+    ↓
+rfp_requests
+    ↓
+node_invitations
+    ↓
+supply_chain_nodes
+5.4 Data Ingestion Flow
+ingestion_jobs
+    ↓
+mcp_containers
+    ↓
+telemetry_events
+    ↓
+supply_chain_nodes (updates)
+6. Referential Integrity Rules
+Rule	Description
+Tenant Isolation	All rows scoped by organization_id
+No Cross-Org Edges	Enforced in node_edges
+Soft Delete	Never physically delete core data
+Append-Only Logs	audit_log, communication_logs
+Partitioned Tables	telemetry_events, audit_log
+7. Performance Considerations
+High-volume tables:
+telemetry_events → partitioned
+audit_log → partitioned
+Indexes:
+GIN → JSONB fields
+GiST → geospatial (location)
+BRIN → time-series
+Query Patterns:
+Always filter by organization_id
+Use partial indexes for active records
+8. Summary
+
+This schema implements:
+
+✅ Multi-tenant SaaS architecture
+✅ Graph-based supply chain modeling
+✅ Strong data isolation (1-Hop rule)
+✅ Real-time + batch ingestion support
+✅ Industrial-grade audit + compliance
