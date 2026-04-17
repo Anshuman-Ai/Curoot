@@ -1,5 +1,14 @@
 fastapi>=0.110.0
 uvicorn>=0.28.0
-supabase>=2.4.0
+supabase==2.11.0
 pydantic-settings>=2.2.0
 python-dotenv>=1.0.0
+python-multipart>=0.0.9
+
+# Module 2.5 / 2.6 additions
+httpx>=0.27.0                  # async HTTP for Open-Meteo, GDELT, NewsAPI, Reddit, ORS
+apscheduler>=3.10.0            # background scan scheduling (disruption every 15m, macro every 30m)
+
+# Testing
+pytest>=8.0.0
+pytest-asyncio>=0.23.0

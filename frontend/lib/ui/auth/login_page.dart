@@ -1,10 +1,53 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../canvas/multiplayer_canvas.dart';
 import 'signup_page.dart';
 
-class LoginPage extends StatelessWidget {
+class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
+
+  @override
+  State<LoginPage> createState() => _LoginPageState();
+}
+
+class _LoginPageState extends State<LoginPage> {
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
+  bool _isLoading = false;
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _signIn() async {
+    if (_emailController.text.isEmpty || _passwordController.text.isEmpty) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please fill out all fields.')));
+      return;
+    }
+    setState(() => _isLoading = true);
+    
+    try {
+      await Supabase.instance.client.auth.signInWithPassword(
+        email: _emailController.text.trim(),
+        password: _passwordController.text.trim(),
+      );
+      if (mounted) {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (context) => const MultiplayerCanvas()),
+        );
+      }
+    } on AuthException catch (error) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error.message)));
+    } catch (error) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Unexpected error occurred: $error')));
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -67,6 +110,7 @@ class LoginPage extends StatelessWidget {
                       label: 'CORPORATE EMAIL',
                       hint: 'name@company.com',
                       obscureText: false,
+                      controller: _emailController,
                     ),
                     const SizedBox(height: 20),
 
@@ -75,6 +119,7 @@ class LoginPage extends StatelessWidget {
                       hint: '••••••••',
                       obscureText: true,
                       rightLabel: 'Forgot Access?',
+                      controller: _passwordController,
                     ),
                     const SizedBox(height: 24),
 
@@ -91,13 +136,7 @@ class LoginPage extends StatelessWidget {
                           ),
                         ),
                         child: ElevatedButton(
-                          onPressed: () {
-                            Navigator.of(context).pushReplacement(
-                              MaterialPageRoute(
-                                builder: (context) => const MultiplayerCanvas(),
-                              ),
-                            );
-                          },
+                          onPressed: _isLoading ? null : _signIn,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.transparent,
                             shadowColor: Colors.transparent,
@@ -105,7 +144,9 @@ class LoginPage extends StatelessWidget {
                               borderRadius: BorderRadius.circular(6),
                             ),
                           ),
-                          child: const Row(
+                          child: _isLoading 
+                            ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                            : const Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               Text(
@@ -246,6 +287,7 @@ class LoginPage extends StatelessWidget {
     required String label,
     required String hint,
     required bool obscureText,
+    TextEditingController? controller,
     String? rightLabel,
   }) {
     return Column(
@@ -277,6 +319,7 @@ class LoginPage extends StatelessWidget {
         SizedBox(
           height: 48,
           child: TextField(
+            controller: controller,
             obscureText: obscureText,
             style: const TextStyle(color: Colors.white, fontSize: 14),
             decoration: InputDecoration(

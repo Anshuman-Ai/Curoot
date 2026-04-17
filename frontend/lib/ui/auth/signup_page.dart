@@ -1,10 +1,57 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../canvas/multiplayer_canvas.dart';
 import 'login_page.dart';
 
-class SignupPage extends StatelessWidget {
+class SignupPage extends StatefulWidget {
   const SignupPage({super.key});
+
+  @override
+  State<SignupPage> createState() => _SignupPageState();
+}
+
+class _SignupPageState extends State<SignupPage> {
+  final _fullNameController = TextEditingController();
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
+  bool _isLoading = false;
+
+  @override
+  void dispose() {
+    _fullNameController.dispose();
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _signUp() async {
+    if (_fullNameController.text.isEmpty || _emailController.text.isEmpty || _passwordController.text.isEmpty) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please fill out all fields.')));
+      return;
+    }
+    setState(() => _isLoading = true);
+    
+    try {
+      await Supabase.instance.client.auth.signUp(
+        email: _emailController.text.trim(),
+        password: _passwordController.text.trim(),
+        data: {'full_name': _fullNameController.text.trim()},
+      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Signup successful! Check your email if verification is required.')));
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (context) => const MultiplayerCanvas()),
+        );
+      }
+    } on AuthException catch (error) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error.message)));
+    } catch (error) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Unexpected error occurred: $error')));
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -67,6 +114,7 @@ class SignupPage extends StatelessWidget {
                       label: 'FULL NAME',
                       hint: 'Jane Doe',
                       obscureText: false,
+                      controller: _fullNameController,
                     ),
                     const SizedBox(height: 16),
 
@@ -74,6 +122,7 @@ class SignupPage extends StatelessWidget {
                       label: 'CORPORATE EMAIL',
                       hint: 'name@company.com',
                       obscureText: false,
+                      controller: _emailController,
                     ),
                     const SizedBox(height: 16),
 
@@ -81,6 +130,7 @@ class SignupPage extends StatelessWidget {
                       label: 'PASSWORD',
                       hint: '••••••••',
                       obscureText: true,
+                      controller: _passwordController,
                     ),
                     const SizedBox(height: 20),
 
@@ -97,13 +147,7 @@ class SignupPage extends StatelessWidget {
                           ),
                         ),
                         child: ElevatedButton(
-                          onPressed: () {
-                            Navigator.of(context).pushReplacement(
-                              MaterialPageRoute(
-                                builder: (context) => const MultiplayerCanvas(),
-                              ),
-                            );
-                          },
+                          onPressed: _isLoading ? null : _signUp,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.transparent,
                             shadowColor: Colors.transparent,
@@ -111,7 +155,9 @@ class SignupPage extends StatelessWidget {
                               borderRadius: BorderRadius.circular(6),
                             ),
                           ),
-                          child: const Row(
+                          child: _isLoading 
+                            ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                            : const Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               Text(
@@ -260,6 +306,7 @@ class SignupPage extends StatelessWidget {
     required String label,
     required String hint,
     required bool obscureText,
+    TextEditingController? controller,
     String? rightLabel,
   }) {
     return Column(
@@ -291,6 +338,7 @@ class SignupPage extends StatelessWidget {
         SizedBox(
           height: 48,
           child: TextField(
+            controller: controller,
             obscureText: obscureText,
             style: const TextStyle(color: Colors.white, fontSize: 14),
             decoration: InputDecoration(
