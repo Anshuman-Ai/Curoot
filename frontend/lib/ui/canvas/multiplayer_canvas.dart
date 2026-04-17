@@ -186,7 +186,7 @@ class _MultiplayerCanvasState extends ConsumerState<MultiplayerCanvas> with Sing
             ),
           ),
           
-          // Top Right Community Button
+          // Top Right: Search, Center, Community
           Positioned(
             top: 24,
             right: 24,
@@ -197,6 +197,43 @@ class _MultiplayerCanvasState extends ConsumerState<MultiplayerCanvas> with Sing
                 children: [
                   const Icon(Icons.sensors, color: Colors.greenAccent),
                   const SizedBox(width: 16),
+                  // Search Button
+                  Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: _searchNodes,
+                      borderRadius: BorderRadius.circular(14),
+                      child: Container(
+                        width: 48,
+                        height: 48,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF22222A),
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        child: const Icon(Icons.search, color: Colors.white70, size: 22),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  // Center on You Button
+                  Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: _recenter,
+                      borderRadius: BorderRadius.circular(14),
+                      child: Container(
+                        width: 48,
+                        height: 48,
+                        decoration: BoxDecoration(
+                          color: Colors.tealAccent,
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        child: const Icon(Icons.my_location, color: Colors.black87, size: 22),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  // Community Button
                   InkWell(
                     onTap: () {},
                     borderRadius: BorderRadius.circular(16),
@@ -228,41 +265,14 @@ class _MultiplayerCanvasState extends ConsumerState<MultiplayerCanvas> with Sing
             ),
           ),
           
-          // Bottom Right Area (AI Tradeoffs + FABs)
-          Positioned(
-            right: 24,
-            bottom: 24,
-            child: SafeArea(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  FloatingActionButton(
-                    heroTag: 'searchBtn',
-                    backgroundColor: const Color(0xFF22222A),
-                    onPressed: _searchNodes,
-                    tooltip: 'Search Node',
-                    child: const Icon(Icons.search, color: Colors.white70),
-                  ),
-                  const SizedBox(height: 16),
-                  FloatingActionButton(
-                    heroTag: 'centerBtn',
-                    backgroundColor: Colors.tealAccent,
-                    onPressed: _recenter,
-                    tooltip: 'Recenter on You',
-                    child: const Icon(Icons.my_location, color: Colors.black87),
-                  ),
-                ],
-              ),
-            ),
-          ),
+
 
           // Node Details / Trade Offs Panel
           if (canvasState.selectedNodeId != null)
             const Positioned(
               right: 24,
-              top: 90, // Positioned below the Community button
-              bottom: 160, // Stops above the search and center FABs
+              top: 90, // Positioned below the top-right bar
+              bottom: 24,
               child: SafeArea(child: RightPanel()),
             ),
 
