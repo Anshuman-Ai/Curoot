@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../canvas/add_node_panel.dart';
+import 'omni_ingestion_panel.dart';
 
 enum LeftPanelTab { none, profile, home, upload, addNode, search, settings }
 
@@ -29,13 +30,9 @@ class LeftPanel extends ConsumerWidget {
     return AnimatedContainer(
       duration: const Duration(milliseconds: 300),
       curve: Curves.easeInOut,
-      width: isExpanded ? 300.0 : 61.0,
-      decoration: BoxDecoration(
-        color: const Color(0xFF161618), // Dark charcoal
-        border: Border(
-          right:
-              BorderSide(color: Colors.white.withValues(alpha: 0.1), width: 1),
-        ),
+      width: isExpanded ? 320.0 : 60.0,
+      decoration: const BoxDecoration(
+        color: Color(0xFF121212), // Sleeker very dark grey
       ),
       child: ClipRect(
         child: Row(
@@ -91,30 +88,25 @@ class LeftPanel extends ConsumerWidget {
             if (isExpanded)
               Expanded(
                 child: Container(
-                  decoration: BoxDecoration(
-                    border: Border(
-                      left: BorderSide(
-                        color: Colors.white.withValues(alpha: 0.05),
-                        width: 1,
-                      ),
-                    ),
+                  decoration: const BoxDecoration(
+                    color: Color(0xFF1A1A1A), // Slightly lighter panel background, no border
                   ),
                   child: ClipRect(
                     child: OverflowBox(
                       alignment: Alignment.topLeft,
-                      minWidth: 239.0,
-                      maxWidth: 239.0,
+                      minWidth: 260.0,
+                      maxWidth: 260.0,
                       child: Stack(
                         children: [
                           Positioned.fill(
                             child: _buildExpandedContent(activeTab),
                           ),
                           Positioned(
-                            top: 8,
-                            right: 8,
+                            top: 20,
+                            right: 20,
                             child: IconButton(
-                              icon: const Icon(Icons.close,
-                                  size: 20, color: Colors.white54),
+                              icon: const Icon(Icons.reply,
+                                  size: 20, color: Color(0xFFE2E2A3)), // yellowish arrow like in the image
                               onPressed: () {
                                 ref
                                     .read(leftPanelTabProvider.notifier)
@@ -141,7 +133,7 @@ class LeftPanel extends ConsumerWidget {
       case LeftPanelTab.home:
         return const _PanelPlaceholder(title: 'Home');
       case LeftPanelTab.upload:
-        return const _PanelPlaceholder(title: 'Upload/Share');
+        return const OmniIngestionPanel();
       case LeftPanelTab.addNode:
         return const AddNodePanel();
       case LeftPanelTab.search:
@@ -168,7 +160,7 @@ class _TrayIcon extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final isActive = tab == activeTab;
-    const neonGreen = Color(0xFF39FF14);
+    const elegantGreen = Color(0xFF2DD4BF); // Softer teal/mint green glow
 
     return InkWell(
       onTap: () {
@@ -185,8 +177,8 @@ class _TrayIcon extends ConsumerWidget {
         alignment: Alignment.center,
         child: Icon(
           icon,
-          color: isActive ? neonGreen : Colors.white54,
-          size: 26,
+          color: isActive ? elegantGreen : Colors.white.withValues(alpha: 0.7),
+          size: 24,
         ),
       ),
     );
