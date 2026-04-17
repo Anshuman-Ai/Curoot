@@ -116,18 +116,11 @@ class _McpGenerationWizardState extends ConsumerState<McpGenerationWizard> {
             constraints: const BoxConstraints(maxHeight: 750),
             padding: const EdgeInsets.all(32),
             decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  const Color(0xFF1F1F1F).withValues(alpha: 0.8),
-                  const Color(0xFF0D0D0D).withValues(alpha: 0.9),
-                ],
-              ),
+              color: const Color(0xFF1A1A1A).withValues(alpha: 0.95), // Match LeftPanel modal styling
               borderRadius: BorderRadius.circular(24),
               border: Border.all(
-                color: const Color(0xFF2DD4BF).withValues(alpha: 0.3),
-                width: 1.5,
+                color: Colors.white.withValues(alpha: 0.1),
+                width: 1,
               ),
               boxShadow: [
                 BoxShadow(

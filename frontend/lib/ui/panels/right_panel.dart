@@ -21,20 +21,25 @@ class RightPanel extends ConsumerWidget {
     bool showCriticalAlert = selectedNode?.type == NodeType.supplier;
     bool showTradeoffs = canvasState.nodes.length > 2;
 
-    return SizedBox(
+    return Container(
       width: 280,
+      decoration: const BoxDecoration(
+        color: Color(0xFF121212), // Match left panel dark theme
+      ),
       child: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // Node Details Card
-            Container(
-              decoration: BoxDecoration(
-                color: const Color(0xFF1E1E24), // Matches the dark grey theme
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: Colors.white12, width: 1),
-              ),
-              padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 20.0),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 24.0, horizontal: 16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Node Details Panel
+              Container(
+                decoration: BoxDecoration(
+                  color: const Color(0xFF1A1A1A), // Match left panel expanded background
+                  borderRadius: BorderRadius.circular(12),
+                  // No border to match sleek style
+                ),
+                padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 20.0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
@@ -59,7 +64,7 @@ class RightPanel extends ConsumerWidget {
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF2A2A35),
+                        color: Colors.white.withValues(alpha: 0.03),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Row(
@@ -123,7 +128,7 @@ class RightPanel extends ConsumerWidget {
                   Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF2A2A35),
+                      color: Colors.white.withValues(alpha: 0.03),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: const Row(
@@ -131,9 +136,9 @@ class RightPanel extends ConsumerWidget {
                       children: [
                         Row(
                           children: [
-                            Text('CARBON ESG', style: TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 0.5)),
+                            Text('CARBON ESG', style: TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.w600, letterSpacing: 0.5)),
                             SizedBox(width: 6),
-                            Icon(Icons.energy_savings_leaf_outlined, color: Colors.white70, size: 14),
+                            Icon(Icons.energy_savings_leaf_outlined, color: Color(0xFF2DD4BF), size: 14),
                           ],
                         ),
                         Text('84T', style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold)),
@@ -146,7 +151,7 @@ class RightPanel extends ConsumerWidget {
                   Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF2A2A35),
+                      color: Colors.white.withValues(alpha: 0.03),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: const Column(
@@ -155,7 +160,7 @@ class RightPanel extends ConsumerWidget {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Text('RELIABILITY', style: TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 0.5)),
+                            Text('RELIABILITY', style: TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.w600, letterSpacing: 0.5)),
                             Text('47%', style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold)),
                           ],
                         ),
@@ -184,9 +189,9 @@ class RightPanel extends ConsumerWidget {
               // Trade offs Card
               Container(
                 decoration: BoxDecoration(
-                  color: const Color(0xFF1E1E24), // Matches the dark grey theme
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: Colors.white12, width: 1),
+                  color: const Color(0xFF1A1A1A), // Matches the dark grey theme
+                  borderRadius: BorderRadius.circular(12),
+                  // border: Border.all(color: Colors.white12, width: 1),  // Removed border
                 ),
                 padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 20.0),
                 child: Column(
@@ -207,8 +212,8 @@ class RightPanel extends ConsumerWidget {
                     // Enterprise Node Buttons
                     ...canvasState.nodes.map((node) {
                       final isSelected = node.id == selectedNodeId;
-                      final iconColor = isSelected ? Colors.redAccent : (node.status == NodeStatus.active ? Colors.greenAccent : Colors.amber);
-                      final icon = isSelected ? Icons.trending_down : (node.status == NodeStatus.active ? Icons.trending_up : Icons.trending_flat);
+                      final iconColor = isSelected ? const Color(0xFF2DD4BF) : (node.status == NodeStatus.active ? Colors.greenAccent : Colors.white70);
+                      final icon = isSelected ? Icons.check_circle_outline : (node.status == NodeStatus.active ? Icons.sync : Icons.radio_button_unchecked);
 
                       return Padding(
                         padding: const EdgeInsets.only(bottom: 12.0),
@@ -220,9 +225,9 @@ class RightPanel extends ConsumerWidget {
                           child: Container(
                             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                             decoration: BoxDecoration(
-                              color: const Color(0xFF2A2A35),
-                              borderRadius: BorderRadius.circular(12),
-                              border: isSelected ? Border.all(color: Colors.white24) : null,
+                              color: isSelected ? Colors.white.withValues(alpha: 0.08) : Colors.white.withValues(alpha: 0.03),
+                              borderRadius: BorderRadius.circular(8),
+                              border: isSelected ? Border.all(color: const Color(0xFF2DD4BF).withValues(alpha: 0.3)) : null,
                             ),
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -249,6 +254,7 @@ class RightPanel extends ConsumerWidget {
           ],
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 }

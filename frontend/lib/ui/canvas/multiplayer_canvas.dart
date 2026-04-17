@@ -23,7 +23,7 @@ class _MultiplayerCanvasState extends ConsumerState<MultiplayerCanvas> with Sing
     super.initState();
     _animationController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1200),
+      duration: const Duration(milliseconds: 600), // reduced duration for snappier dragging/panning
     );
     _animationController.addListener(() {
       if (_animation != null) {
@@ -44,14 +44,16 @@ class _MultiplayerCanvasState extends ConsumerState<MultiplayerCanvas> with Sing
     super.dispose();
   }
 
-  void _panToNode(Offset position, {bool animate = true}) {
+  void _panToNode(Offset position, {bool animate = true, double? targetZoom}) {
     final screenSize = MediaQuery.of(context).size;
     final screenCenter = Offset(screenSize.width / 2, screenSize.height / 2);
     
     final currentMatrix = _transformationController.value;
     final currentScale = currentMatrix.getMaxScaleOnAxis();
 
-    final targetScale = currentScale; // Maintain current zoom level
+    const defaultZoom = 1.2;
+    final double computedScale = currentScale < defaultZoom ? defaultZoom : currentScale;
+    final targetScale = targetZoom ?? computedScale;
     
     final xTranslation = screenCenter.dx - (position.dx * targetScale);
     final yTranslation = screenCenter.dy - (position.dy * targetScale);
@@ -69,7 +71,7 @@ class _MultiplayerCanvasState extends ConsumerState<MultiplayerCanvas> with Sing
         end: targetMatrix,
       ).animate(CurvedAnimation(
         parent: _animationController,
-        curve: Curves.easeInOutCubic,
+        curve: Curves.easeOutCubic,
       ));
 
       _animationController.forward(from: 0);
@@ -109,8 +111,8 @@ class _MultiplayerCanvasState extends ConsumerState<MultiplayerCanvas> with Sing
 
   @override
   Widget build(BuildContext context) {
-    final canvasState = ref.watch(canvasProvider);
-
+    // Removed ref.watch(canvasProvider) from root to dramatically increase FPS when dragging nodes
+    // and animating canvas
     return Scaffold(
       backgroundColor: const Color(0xFF111111), // Very dark gray/almost black
       body: Stack(
@@ -133,60 +135,122 @@ class _MultiplayerCanvasState extends ConsumerState<MultiplayerCanvas> with Sing
             boundaryMargin: const EdgeInsets.all(5000),
             minScale: 0.1,
             maxScale: 4.0,
+            trackpadScrollCausesScale: false, // improves trackpad/mouse pan sensitivity 
             child: SizedBox(
               width: 10000, // Massive explicit base anchor
               height: 10000,
-              child: Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  // Draw Edges overlapping the identical 0,0 coordinate system
-                  Positioned.fill(
-                    child: CustomPaint(
-                      painter: EdgePainter(
-                        nodes: canvasState.nodes,
-                        edges: canvasState.edges,
+              child: Consumer(
+                builder: (context, ref, _) {
+                  final canvasState = ref.watch(canvasProvider);
+                  return Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      // Draw Edges overlapping the identical 0,0 coordinate system
+                      Positioned.fill(
+                        child: CustomPaint(
+                          painter: EdgePainter(
+                            nodes: canvasState.nodes,
+                            edges: canvasState.edges,
+                          ),
+                        ),
                       ),
-                    ),
-                  ),
 
-                  
-                  // Draw Nodes
-                  ...canvasState.nodes.map((node) {
-                    // Offset widget so center of node matches `node.position`
-                    // Node widget approx width = 56, height = 90
-                    const double widgetWidth = 56.0;
-                    const double widgetHeight = 90.0;
+                      // Draw Nodes
+                      ...canvasState.nodes.map((node) {
+                        // Offset widget so center of node matches `node.position`
+                        // Node widget approx width = 56, height = 90
+                        const double widgetWidth = 56.0;
+                        const double widgetHeight = 90.0;
 
-                    return Positioned(
-                      left: node.position.dx - (widgetWidth / 2),
-                      top: node.position.dy - (widgetHeight / 2),
-                      child: NodeWidget(
-                        node: node,
-                        onTap: () {
-                          ref.read(canvasProvider.notifier).selectNode(node.id);
-                          _panToNode(node.position);
-                          if (node.type == NodeType.add) {
-                            ref.read(leftPanelTabProvider.notifier).setTab(LeftPanelTab.addNode);
-                          }
-                        },
-                        onPanUpdate: (details) {
-                          final scale = _transformationController.value.getMaxScaleOnAxis();
-                          final dx = details.delta.dx / scale;
-                          final dy = details.delta.dy / scale;
-                          ref.read(canvasProvider.notifier).updateNodePosition(
-                            node.id, 
-                            Offset(node.position.dx + dx, node.position.dy + dy),
-                          );
-                        },
-                      ),
-                    );
-                  }),
-                ],
+                        return Positioned(
+                          left: node.position.dx - (widgetWidth / 2),
+                          top: node.position.dy - (widgetHeight / 2),
+                          child: NodeWidget(
+                            node: node,
+                            onTap: () {
+                              ref.read(canvasProvider.notifier).selectNode(node.id);
+                              _panToNode(node.position);
+                              if (node.type == NodeType.add) {
+                                ref.read(leftPanelTabProvider.notifier).setTab(LeftPanelTab.addNode);
+                              }
+                            },
+                            onPanUpdate: (details) {
+                              final scale = _transformationController.value.getMaxScaleOnAxis();
+                              // Adjust mouse sensitivity by increasing standard pointer movement multiplier slightly if needed, 
+                              // but mainly FPS increase makes it smooth.
+                              final dx = details.delta.dx / scale;
+                              final dy = details.delta.dy / scale;
+                              ref.read(canvasProvider.notifier).updateNodePosition(
+                                node.id, 
+                                Offset(node.position.dx + dx, node.position.dy + dy),
+                              );
+                            },
+                          ),
+                        );
+                      }),
+                    ],
+                  );
+                },
               ),
             ),
           ),
           
-          // Top Right: Search, Center, Community
+          // Search and Recenter controls (Moved adjacent to Right Panel)
+          Consumer(
+            builder: (context, ref, _) {
+              final canvasState = ref.watch(canvasProvider);
+              final isNodeSelected = canvasState.selectedNodeId != null;
+
+              return Positioned(
+                top: 90, // Align top with the Right panel
+                right: isNodeSelected ? 320 : 24, // Shift to left side of right panel
+                child: SafeArea(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Search Button
+                      Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          onTap: _searchNodes,
+                          borderRadius: BorderRadius.circular(14),
+                          child: Container(
+                            width: 48,
+                            height: 48,
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF22222A),
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                            child: const Icon(Icons.search, color: Colors.white70, size: 22),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      // Center on You Button
+                      Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          onTap: _recenter,
+                          borderRadius: BorderRadius.circular(14),
+                          child: Container(
+                            width: 48,
+                            height: 48,
+                            decoration: BoxDecoration(
+                              color: Colors.tealAccent,
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                            child: const Icon(Icons.my_location, color: Colors.black87, size: 22),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+          
+          // Top Right: Community Button isolated
           Positioned(
             top: 24,
             right: 24,
@@ -197,42 +261,6 @@ class _MultiplayerCanvasState extends ConsumerState<MultiplayerCanvas> with Sing
                 children: [
                   const Icon(Icons.sensors, color: Colors.greenAccent),
                   const SizedBox(width: 16),
-                  // Search Button
-                  Material(
-                    color: Colors.transparent,
-                    child: InkWell(
-                      onTap: _searchNodes,
-                      borderRadius: BorderRadius.circular(14),
-                      child: Container(
-                        width: 48,
-                        height: 48,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF22222A),
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                        child: const Icon(Icons.search, color: Colors.white70, size: 22),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  // Center on You Button
-                  Material(
-                    color: Colors.transparent,
-                    child: InkWell(
-                      onTap: _recenter,
-                      borderRadius: BorderRadius.circular(14),
-                      child: Container(
-                        width: 48,
-                        height: 48,
-                        decoration: BoxDecoration(
-                          color: Colors.tealAccent,
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                        child: const Icon(Icons.my_location, color: Colors.black87, size: 22),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
                   // Community Button
                   InkWell(
                     onTap: () {},
@@ -265,16 +293,21 @@ class _MultiplayerCanvasState extends ConsumerState<MultiplayerCanvas> with Sing
             ),
           ),
           
-
-
           // Node Details / Trade Offs Panel
-          if (canvasState.selectedNodeId != null)
-            const Positioned(
-              right: 24,
-              top: 90, // Positioned below the top-right bar
-              bottom: 24,
-              child: SafeArea(child: RightPanel()),
-            ),
+          Consumer(
+            builder: (context, ref, _) {
+              final canvasState = ref.watch(canvasProvider);
+              if (canvasState.selectedNodeId != null) {
+                return const Positioned(
+                  right: 24,
+                  top: 90, // Positioned below the top-right bar
+                  bottom: 24,
+                  child: SafeArea(child: RightPanel()),
+                );
+              }
+              return const SizedBox.shrink();
+            },
+          ),
 
           // Left Navigation Panel
           const Positioned(

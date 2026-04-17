@@ -89,7 +89,8 @@ class LeftPanel extends ConsumerWidget {
               Expanded(
                 child: Container(
                   decoration: const BoxDecoration(
-                    color: Color(0xFF1A1A1A), // Slightly lighter panel background, no border
+                    color: Color(0xFF121212), // Unify with right panel
+                    border: Border(left: BorderSide(color: Colors.white12, width: 1)),
                   ),
                   child: ClipRect(
                     child: OverflowBox(
@@ -105,8 +106,8 @@ class LeftPanel extends ConsumerWidget {
                             top: 20,
                             right: 20,
                             child: IconButton(
-                              icon: const Icon(Icons.reply,
-                                  size: 20, color: Color(0xFFE2E2A3)), // yellowish arrow like in the image
+                              icon: const Icon(Icons.close,
+                                  size: 20, color: Colors.white54), // sleek close icon
                               onPressed: () {
                                 ref
                                     .read(leftPanelTabProvider.notifier)
@@ -175,9 +176,13 @@ class _TrayIcon extends ConsumerWidget {
         height: 50,
         width: 60,
         alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: isActive ? Colors.white.withValues(alpha: 0.05) : Colors.transparent,
+          border: isActive ? const Border(left: BorderSide(color: elegantGreen, width: 3)) : null,
+        ),
         child: Icon(
           icon,
-          color: isActive ? elegantGreen : Colors.white.withValues(alpha: 0.7),
+          color: isActive ? elegantGreen : Colors.white.withValues(alpha: 0.5),
           size: 24,
         ),
       ),
@@ -191,25 +196,38 @@ class _PanelPlaceholder extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(top: 48.0, left: 16.0, right: 16.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
-            ),
+    return SingleChildScrollView(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 24.0, horizontal: 16.0),
+        child: Container(
+          decoration: BoxDecoration(
+            color: const Color(0xFF1A1A1A),
+            borderRadius: BorderRadius.circular(12),
           ),
-          const SizedBox(height: 16),
-          Text(
-            'Placeholder content for $title.',
-            style: const TextStyle(color: Colors.white54),
+          padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 20.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Center(
+                child: Text(
+                  title,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              const Divider(height: 1, color: Colors.white12),
+              const SizedBox(height: 16),
+              Text(
+                'Placeholder content for $title.',
+                style: const TextStyle(color: Colors.white54, fontSize: 13),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }

@@ -72,11 +72,11 @@ class _OmniIngestionPanelState extends ConsumerState<OmniIngestionPanel> {
                width: 450,
                padding: const EdgeInsets.all(24),
                decoration: BoxDecoration(
-                 color: const Color(0xFF121212).withValues(alpha: 0.8),
+                 color: const Color(0xFF1A1A1A).withValues(alpha: 0.95), // Match LeftPanel modal
                  borderRadius: BorderRadius.circular(16),
-                 border: Border.all(color: const Color(0xFF2DD4BF).withValues(alpha: 0.6), width: 1.5),
+                 border: Border.all(color: Colors.white.withValues(alpha: 0.1), width: 1),
                  boxShadow: [
-                   BoxShadow(color: const Color(0xFF2DD4BF).withValues(alpha: 0.2), blurRadius: 20, spreadRadius: 2)
+                   BoxShadow(color: Colors.black.withValues(alpha: 0.4), blurRadius: 40, spreadRadius: 10)
                  ]
                ),
                child: Column(
@@ -169,16 +169,9 @@ class _OmniIngestionPanelState extends ConsumerState<OmniIngestionPanel> {
               width: 440,
               padding: const EdgeInsets.all(32),
               decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    const Color(0xFF1A1A1A).withValues(alpha: 0.8),
-                    const Color(0xFF0D0D0D).withValues(alpha: 0.9),
-                  ]
-                ),
+                color: const Color(0xFF1A1A1A).withValues(alpha: 0.95), // Match LeftPanel modal
                 borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: Colors.white.withValues(alpha: 0.15), width: 1.5),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.1), width: 1),
               ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -244,79 +237,83 @@ class _OmniIngestionPanelState extends ConsumerState<OmniIngestionPanel> {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 24.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Center(
-            child: Text(
-              'Omni Ingestion',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
-                letterSpacing: 0.5,
-              ),
-            ),
+    return SingleChildScrollView(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 24.0, horizontal: 16.0),
+        child: Container(
+          decoration: BoxDecoration(
+            color: const Color(0xFF1A1A1A), // Matches the dark grey theme
+            borderRadius: BorderRadius.circular(12),
           ),
-          const SizedBox(height: 12),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
+          padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 20.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF2DD4BF).withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: const Color(0xFF2DD4BF).withValues(alpha: 0.4)),
-                  boxShadow: [
-                    BoxShadow(color: const Color(0xFF2DD4BF).withValues(alpha: 0.1), blurRadius: 10)
-                  ]
-                ),
-                child: const Row(
-                  children: [
-                    Icon(Icons.auto_awesome, size: 14, color: Color(0xFF2DD4BF)),
-                    SizedBox(width: 6),
-                    Text(
-                      'Gemini API Attached',
-                      style: TextStyle(color: Color(0xFF2DD4BF), fontSize: 12, fontWeight: FontWeight.w500),
-                    ),
-                  ],
+              const Center(
+                child: Text(
+                  'Omni Ingestion',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
+              const SizedBox(height: 12),
+              const Divider(height: 1, color: Colors.white12),
+              const SizedBox(height: 16),
+              
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.03),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.auto_awesome, size: 14, color: Color(0xFF2DD4BF)),
+                      SizedBox(width: 8),
+                      Text(
+                        'Gemini API Attached',
+                        style: TextStyle(color: Colors.white70, fontSize: 13),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              
+              _buildDragDropZone(),
+              
+              const SizedBox(height: 16),
+              
+              _buildListTileButton(
+                'Configure Webhook',
+                 _showWebhookConfigDialog,
+              ),
+              
+              const SizedBox(height: 12),
+              
+              _buildListTileButton(
+                'Enterprise MCP Generator',
+                () {
+                  showDialog(
+                    context: context,
+                    builder: (_) => const McpGenerationWizard(),
+                  );
+                },
+                isWifiIcon: true,
+              ),
+              
+              const SizedBox(height: 16),
+              
+              _buildCopyToConfigureBox(),
             ],
           ),
-          const SizedBox(height: 24),
-          
-          _buildDragDropZone(),
-          
-          const SizedBox(height: 24),
-          
-          _buildListTileButton(
-            'Configure Data Stream Webhook',
-             _showWebhookConfigDialog,
-          ),
-          
-          const SizedBox(height: 20),
-          Divider(color: Colors.white.withValues(alpha: 0.1), thickness: 1),
-          const SizedBox(height: 20),
-          
-          _buildListTileButton(
-            'Enterprise MCP Generator',
-            () {
-              showDialog(
-                context: context,
-                builder: (_) => const McpGenerationWizard(),
-              );
-            },
-            isWifiIcon: true,
-          ),
-          
-          const SizedBox(height: 24),
-          
-          _buildCopyToConfigureBox(),
-        ],
+        ),
       ),
     );
   }
@@ -340,7 +337,7 @@ class _OmniIngestionPanelState extends ConsumerState<OmniIngestionPanel> {
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 200),
             width: double.infinity,
-            height: 140, // Balanced proportional design
+            height: 120, // More compact to fit expanded side panel effectively
             decoration: BoxDecoration(
               color: _isDragging 
                   ? Colors.white.withValues(alpha: 0.1) 
@@ -364,15 +361,15 @@ class _OmniIngestionPanelState extends ConsumerState<OmniIngestionPanel> {
                       children: [
                         Icon(
                           Icons.cloud_upload_rounded,
-                          size: 32,
+                          size: 28,
                           color: _isDragging ? const Color(0xFF2DD4BF) : Colors.white.withValues(alpha: 0.5),
                         ),
-                        const SizedBox(height: 12),
+                        const SizedBox(height: 8),
                         const Text(
-                          'Upload Multi-modal Files',
+                          'Upload Files',
                           style: TextStyle(
                             color: Colors.white70,
-                            fontSize: 14,
+                            fontSize: 13,
                             fontWeight: FontWeight.w500,
                           ),
                         ),
@@ -390,8 +387,8 @@ class _OmniIngestionPanelState extends ConsumerState<OmniIngestionPanel> {
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               const SizedBox(
-                                width: 24,
-                                height: 24,
+                                width: 20,
+                                height: 20,
                                 child: CircularProgressIndicator(
                                   strokeWidth: 2,
                                   valueColor: AlwaysStoppedAnimation(Color(0xFF2DD4BF)),
@@ -404,7 +401,7 @@ class _OmniIngestionPanelState extends ConsumerState<OmniIngestionPanel> {
                                 style: const TextStyle(
                                   color: Colors.white,
                                   fontWeight: FontWeight.w500,
-                                  fontSize: 13,
+                                  fontSize: 12,
                                 ),
                               ),
                             ],
@@ -424,14 +421,12 @@ class _OmniIngestionPanelState extends ConsumerState<OmniIngestionPanel> {
   Widget _buildListTileButton(String title, VoidCallback onTap, {bool isWifiIcon = false}) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(8),
       child: Container(
-        height: 56,
-        padding: const EdgeInsets.symmetric(horizontal: 16),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.03), // Sleeker variant
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+          color: Colors.white.withValues(alpha: 0.03),
+          borderRadius: BorderRadius.circular(8),
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -441,7 +436,7 @@ class _OmniIngestionPanelState extends ConsumerState<OmniIngestionPanel> {
                 title,
                 style: const TextStyle(
                   color: Colors.white,
-                  fontSize: 14,
+                  fontSize: 13,
                   fontWeight: FontWeight.w500,
                 ),
                 maxLines: 1,
@@ -449,10 +444,11 @@ class _OmniIngestionPanelState extends ConsumerState<OmniIngestionPanel> {
               ),
             ),
             const SizedBox(width: 8),
-            if (isWifiIcon)
-              const Icon(Icons.developer_board, size: 20, color: Color(0xFF2DD4BF))
-            else
-              const Icon(Icons.webhook_rounded, size: 20, color: Color(0xFF2DD4BF)),
+            Icon(
+              isWifiIcon ? Icons.developer_board : Icons.webhook_rounded, 
+              size: 16, 
+              color: Colors.white70
+            ),
           ],
         ),
       ),
@@ -460,41 +456,33 @@ class _OmniIngestionPanelState extends ConsumerState<OmniIngestionPanel> {
   }
 
   Widget _buildCopyToConfigureBox() {
-    return Expanded(
-      child: Container(
-        width: double.infinity,
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [Colors.white.withValues(alpha: 0.05), Colors.transparent],
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
+    return Container(
+      height: 80,
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.02),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+      ),
+      child: const Stack(
+        children: [
+          Positioned(
+            top: 12,
+            right: 12,
+            child: Icon(Icons.memory, size: 20, color: Colors.white24),
           ),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
-        ),
-        child: const Stack(
-          children: [
-            Positioned(
-              top: 16,
-              right: 16,
-              child: Icon(Icons.memory, size: 24, color: Colors.white24),
-            ),
-            Align(
-              alignment: Alignment.bottomCenter,
-              child: Padding(
-                padding: EdgeInsets.only(bottom: 32.0),
-                child: Text(
-                  'Awaiting configuration pipeline...',
-                  style: TextStyle(
-                    color: Colors.white38,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
+          Align(
+            alignment: Alignment.center,
+            child: Text(
+              'Awaiting configuration pipeline...',
+              style: TextStyle(
+                color: Colors.white38,
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
