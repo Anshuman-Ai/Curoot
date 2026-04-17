@@ -7,17 +7,18 @@ from app.models.ai_parser import AIExtractionResult, SupplyChainNode, Coordinate
 
 logger = logging.getLogger(__name__)
 
-# Intialize Gemini API
+# Initialize Gemini API
 genai.configure(api_key=os.getenv("GEMINI_API_KEY", ""))
+model = genai.GenerativeModel('gemini-1.5-flash')
 
 async def process_unstructured_file(file_content: bytes, filename: str) -> AIExtractionResult:
     """
-    Stub for Gemini 2.5 Vertex AI call.
+    Stub for Gemini 1.5 Flash API call.
     Parses unstructured text (PDF/CSV) and extracts supply chain nodes.
     """
     logger.info(f"Processing unstructured file: {filename}")
     
-    # TODO: Implement actual Vertex AI Gemini 2.5 call here.
+    # TODO: Implement actual Gemini 1.5 Flash call here.
     # Currently safely returning a mocked schema response.
     
     return AIExtractionResult(
