@@ -51,19 +51,23 @@ class CanvasEdge {
 class CanvasState {
   final List<CanvasNode> nodes;
   final List<CanvasEdge> edges;
+  final String? selectedNodeId;
 
   CanvasState({
     required this.nodes,
     required this.edges,
+    this.selectedNodeId,
   });
 
   CanvasState copyWith({
     List<CanvasNode>? nodes,
     List<CanvasEdge>? edges,
+    String? selectedNodeId,
   }) {
     return CanvasState(
       nodes: nodes ?? this.nodes,
       edges: edges ?? this.edges,
+      selectedNodeId: selectedNodeId ?? this.selectedNodeId,
     );
   }
 }
@@ -72,6 +76,7 @@ class CanvasNotifier extends Notifier<CanvasState> {
   @override
   CanvasState build() {
     return CanvasState(
+      selectedNodeId: 'add',
       nodes: [
         CanvasNode(
           id: 'you',
@@ -79,6 +84,27 @@ class CanvasNotifier extends Notifier<CanvasState> {
           type: NodeType.oem,
           status: NodeStatus.active,
           position: const Offset(5000, 5000),
+        ),
+        CanvasNode(
+          id: 'supplier_taiwan',
+          label: 'Taiwan Supplier',
+          type: NodeType.supplier,
+          status: NodeStatus.delayed, // triggers the critical state visualization indirectly if needed
+          position: const Offset(4800, 5100),
+        ),
+        CanvasNode(
+          id: 'enterprise_a',
+          label: 'Enterprise A..',
+          type: NodeType.supplier,
+          status: NodeStatus.active,
+          position: const Offset(4800, 4850),
+        ),
+        CanvasNode(
+          id: 'enterprise_b',
+          label: 'Enterprise B..',
+          type: NodeType.factory,
+          status: NodeStatus.pending,
+          position: const Offset(5200, 4850),
         ),
         CanvasNode(
           id: 'add',
@@ -90,6 +116,7 @@ class CanvasNotifier extends Notifier<CanvasState> {
       ],
       edges: [
         CanvasEdge(id: 'e1', sourceId: 'you', targetId: 'add'),
+        CanvasEdge(id: 'e2', sourceId: 'supplier_taiwan', targetId: 'you'),
       ],
     );
   }
@@ -103,6 +130,10 @@ class CanvasNotifier extends Notifier<CanvasState> {
         return n;
       }).toList(),
     );
+  }
+
+  void selectNode(String? id) {
+    state = state.copyWith(selectedNodeId: id);
   }
 }
 

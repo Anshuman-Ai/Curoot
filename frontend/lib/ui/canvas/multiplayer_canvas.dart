@@ -163,6 +163,7 @@ class _MultiplayerCanvasState extends ConsumerState<MultiplayerCanvas> with Sing
                       child: NodeWidget(
                         node: node,
                         onTap: () {
+                          ref.read(canvasProvider.notifier).selectNode(node.id);
                           _panToNode(node.position);
                           if (node.type == NodeType.add) {
                             ref.read(leftPanelTabProvider.notifier).setTab(LeftPanelTab.addNode);
@@ -185,31 +186,85 @@ class _MultiplayerCanvasState extends ConsumerState<MultiplayerCanvas> with Sing
             ),
           ),
           
-          // UI Overlays
+          // Top Right Community Button
           Positioned(
-            right: 344, // 320 (RightPanel width) + 24
-            bottom: 24,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                FloatingActionButton(
-                  heroTag: 'searchBtn',
-                  backgroundColor: const Color(0xFF22222A),
-                  onPressed: _searchNodes,
-                  tooltip: 'Search Node',
-                  child: const Icon(Icons.search, color: Colors.white70),
-                ),
-                const SizedBox(height: 16),
-                FloatingActionButton(
-                  heroTag: 'centerBtn',
-                  backgroundColor: Colors.tealAccent,
-                  onPressed: _recenter,
-                  tooltip: 'Recenter on You',
-                  child: const Icon(Icons.my_location, color: Colors.black87),
-                ),
-              ],
+            top: 24,
+            right: 24,
+            child: SafeArea(
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  const Icon(Icons.sensors, color: Colors.greenAccent),
+                  const SizedBox(width: 16),
+                  InkWell(
+                    onTap: () {},
+                    borderRadius: BorderRadius.circular(16),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF22222A),
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            'Community',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          SizedBox(width: 12),
+                          Icon(Icons.storefront, color: Colors.amber, size: 20),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
+          
+          // Bottom Right Area (AI Tradeoffs + FABs)
+          Positioned(
+            right: 24,
+            bottom: 24,
+            child: SafeArea(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  FloatingActionButton(
+                    heroTag: 'searchBtn',
+                    backgroundColor: const Color(0xFF22222A),
+                    onPressed: _searchNodes,
+                    tooltip: 'Search Node',
+                    child: const Icon(Icons.search, color: Colors.white70),
+                  ),
+                  const SizedBox(height: 16),
+                  FloatingActionButton(
+                    heroTag: 'centerBtn',
+                    backgroundColor: Colors.tealAccent,
+                    onPressed: _recenter,
+                    tooltip: 'Recenter on You',
+                    child: const Icon(Icons.my_location, color: Colors.black87),
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          // Node Details / Trade Offs Panel
+          if (canvasState.selectedNodeId != null)
+            const Positioned(
+              right: 24,
+              top: 90, // Positioned below the Community button
+              bottom: 160, // Stops above the search and center FABs
+              child: SafeArea(child: RightPanel()),
+            ),
 
           // Left Navigation Panel
           const Positioned(
@@ -217,14 +272,6 @@ class _MultiplayerCanvasState extends ConsumerState<MultiplayerCanvas> with Sing
             top: 0,
             bottom: 0,
             child: SafeArea(child: LeftPanel()),
-          ),
-
-          // Right AI Tradeoffs Panel
-          const Positioned(
-            right: 0,
-            top: 0,
-            bottom: 0,
-            child: SafeArea(child: RightPanel()),
           ),
         ],
       ),
