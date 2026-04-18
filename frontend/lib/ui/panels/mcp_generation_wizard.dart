@@ -2,7 +2,16 @@ import 'dart:async';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/services.dart';
 import '../../services/api_client.dart';
+
+class ActiveMcpPipelineNotifier extends Notifier<String?> {
+  @override
+  String? build() => null;
+  void updatePipeline(String value) => state = value;
+}
+
+final activeMcpPipelineProvider = NotifierProvider<ActiveMcpPipelineNotifier, String?>(ActiveMcpPipelineNotifier.new);
 
 class McpGenerationWizard extends ConsumerStatefulWidget {
   const McpGenerationWizard({super.key});
@@ -55,11 +64,14 @@ class _McpGenerationWizardState extends ConsumerState<McpGenerationWizard> {
     ];
 
     // Background call to client without blocking UI animation
-    Future<Map<String, dynamic>> apiFuture = ref.read(apiClientProvider).generateMcp({
+    // We catch error early so it doesn't spawn an unhandled async exception in Dart
+    Future<Map<String, dynamic>?> apiFuture = ref.read(apiClientProvider).generateMcp({
       'dbType': _dbTypeController.text,
       'ip': _ipController.text,
       'port': _portController.text,
       'freq': _freqController.text,
+    }).catchError((error) {
+      return <String, dynamic>{'error': error.toString()};
     });
 
     for (int i = 0; i < logs.length; i++) {
@@ -72,11 +84,16 @@ class _McpGenerationWizardState extends ConsumerState<McpGenerationWizard> {
     }
 
     try {
-      _generatedPayload = await apiFuture;
+      final result = await apiFuture;
+      if (result != null && result.containsKey('error')) {
+         throw Exception(result['error']);
+      }
+      _generatedPayload = result;
+      ref.read(activeMcpPipelineProvider.notifier).updatePipeline(_dbTypeController.text);
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _terminalLogs.add("Error: \$e");
+        _terminalLogs.add("Error: $e");
       });
       return;
     }
@@ -353,14 +370,27 @@ class _McpGenerationWizardState extends ConsumerState<McpGenerationWizard> {
           ),
         ),
         const SizedBox(height: 24),
-        Align(
-          alignment: Alignment.centerRight,
-          child: _buildGlassButton(
-            'Acknowledge & Close',
-            () => Navigator.of(context).pop(),
-            isPrimary: true,
-            icon: Icons.check,
-          ),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.end,
+          children: [
+            _buildGlassButton(
+              'Copy Code',
+              () {
+                Clipboard.setData(ClipboardData(text: docComposeOutput));
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Configuration copied to clipboard!'), backgroundColor: Color(0xFF2DD4BF)),
+                );
+              },
+              icon: Icons.copy,
+            ),
+            const SizedBox(width: 12),
+            _buildGlassButton(
+              'Acknowledge & Close',
+              () => Navigator.of(context).pop(),
+              isPrimary: true,
+              icon: Icons.check,
+            ),
+          ],
         ),
       ],
     );

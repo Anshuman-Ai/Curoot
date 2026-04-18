@@ -24,10 +24,22 @@ class _OmniIngestionPanelState extends ConsumerState<OmniIngestionPanel> {
     FilePickerResult? result = await FilePicker.pickFiles(
       type: FileType.custom,
       allowedExtensions: ['pdf', 'csv', 'doc', 'docx', 'txt'],
+      withData: true,
     );
 
-    if (result != null && result.files.single.bytes != null) {
-      _startUpload(result.files.single.name, result.files.single.bytes!);
+    if (result != null) {
+      if (result.files.single.bytes != null) {
+        _startUpload(result.files.single.name, result.files.single.bytes!);
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('Could not load file data. Note: Drag & Drop sometimes lacks data access on desktop. Please use the upload click instead.'),
+              backgroundColor: Colors.redAccent.withValues(alpha: 0.8),
+            ),
+          );
+        }
+      }
     }
   }
 
@@ -463,6 +475,54 @@ class _OmniIngestionPanelState extends ConsumerState<OmniIngestionPanel> {
   }
 
   Widget _buildCopyToConfigureBox() {
+    final activePipeline = ref.watch(activeMcpPipelineProvider);
+
+    if (activePipeline != null) {
+      return Container(
+        height: 80,
+        width: double.infinity,
+        decoration: BoxDecoration(
+          color: const Color(0xFF2DD4BF).withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: const Color(0xFF2DD4BF).withValues(alpha: 0.3)),
+        ),
+        child: Stack(
+          children: [
+            const Positioned(
+              top: 12,
+              right: 12,
+              child: Icon(Icons.check_circle, size: 20, color: Color(0xFF2DD4BF)),
+            ),
+            Align(
+              alignment: Alignment.center,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text(
+                    'Active Pipeline',
+                    style: TextStyle(
+                      color: Color(0xFF2DD4BF),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Enterprise ERP ($activePipeline)',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
     return Container(
       height: 80,
       width: double.infinity,
