@@ -4,6 +4,7 @@ from typing import Dict, Any
 
 from app.models.ai_parser import AIExtractionResult, UniversalFilter
 from app.services import ai_service
+from app.db.supabase import get_supabase_client
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -48,9 +49,27 @@ async def ingest_telemetry(payload: UniversalFilter):
     # using model_dump to convert into dict (pydantic v2 support) or dict() for v1
     safe_data = payload.dict(exclude_none=True) if hasattr(payload, 'dict') else payload.model_dump(exclude_none=True)
     
+    # Helper to update Supabase
+    def _update_node_db(data: Dict[str, Any]):
+        try:
+            supabase = get_supabase_client()
+            update_doc = {}
+            if "status" in data:
+                update_doc["status"] = data["status"]
+            if "location" in data and isinstance(data["location"], dict):
+                # Format to PostGIS GeoJSON Point geometry
+                update_doc["location"] = {
+                    "type": "Point",
+                    "coordinates": [data["location"].get("lng"), data["location"].get("lat")]
+                }
+            if update_doc:
+                supabase.table("supply_chain_nodes").update(update_doc).eq("id", data["node_id"]).execute()
+        except Exception as e:
+            logger.error(f"Error updating Supabase supply_chain_nodes for {data.get('node_id')}: {str(e)}")
+
     # Standard routing: bypass LLM if no crisis message
     if not payload.crisis_message:
-        # TODO: Insert safe_data directly into Supabase DB
+        _update_node_db(safe_data)
         return {
             "status": "success",
             "message": "Telemetry securely routed to database.",
@@ -64,7 +83,8 @@ async def ingest_telemetry(payload: UniversalFilter):
     # Augment safe payload with AI-determined context
     safe_data["status"] = extracted_status
     
-    # TODO: Insert augmented safe_data into Supabase DB
+    _update_node_db(safe_data)
+    
     return {
         "status": "success",
         "message": "Crisis message analyzed and telemetry routed.",

@@ -41,7 +41,14 @@ class _OmniIngestionPanelState extends ConsumerState<OmniIngestionPanel> {
     try {
       extractionResult = await ref.read(apiClientProvider).ingestUnstructured(name, bytes);
     } catch (e) {
-      // Ignored for UI demo
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Upload failed: $e'),
+            backgroundColor: Colors.redAccent.withValues(alpha: 0.8),
+          ),
+        );
+      }
     }
 
     if (mounted) {
