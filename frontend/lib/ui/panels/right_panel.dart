@@ -1,10 +1,64 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../../state/canvas_provider.dart';
 import '../../state/disruption_provider.dart';
 import '../../state/tradeoffs_provider.dart';
 import '../../models/disruption_models.dart';
 import '../../models/tradeoff_models.dart';
+
+// ── Shared design tokens (mirrors login / signup pages) ──────────────────────
+const _kPanelBg      = Colors.transparent;
+const _kCardBorder   = Color(0x4D404944); // rgba(64,73,68,0.3)
+const _kTileBg       = Color(0xFF313533);
+const _kTileBorder   = Color(0xFF2D3449);
+const _kDivider      = Color(0xFF2D3449);
+const _kAccent       = Color(0xFF8083FF); // purple-indigo
+const _kTeal         = Color(0xFF2DD4BF);
+const _kLabelColor   = Colors.white;
+
+// ── Text styles (Manrope) ─────────────────────────────────────────────────────
+TextStyle _label({double size = 12, FontWeight w = FontWeight.w600,
+    double spacing = 0.6, Color color = _kLabelColor}) =>
+    GoogleFonts.manrope(
+      fontSize: size,
+      fontWeight: w,
+      letterSpacing: spacing,
+      color: color,
+    );
+
+TextStyle _body({double size = 13, FontWeight w = FontWeight.w400,
+    Color color = Colors.white}) =>
+    GoogleFonts.manrope(fontSize: size, fontWeight: w, color: color);
+
+// ── Card decorator ────────────────────────────────────────────────────────────
+BoxDecoration _cardDecoration() => BoxDecoration(
+      gradient: const LinearGradient(
+        begin: Alignment(-0.8, -0.8),
+        end: Alignment(0.8, 0.8),
+        stops: [0.2148, 0.5255, 0.8042],
+        colors: [Color(0xFF000000), Color(0xCC333333), Color(0xFF000000)],
+      ),
+      border: const Border.fromBorderSide(
+          BorderSide(color: _kCardBorder, width: 1)),
+      borderRadius: BorderRadius.circular(16),
+      boxShadow: [
+        BoxShadow(
+          color: Colors.black.withValues(alpha: 0.4),
+          blurRadius: 40,
+          offset: const Offset(0, 20),
+        ),
+      ],
+    );
+
+// ── Tile decorator (input-field style) ───────────────────────────────────────
+BoxDecoration _tileDecoration({Color? border}) => BoxDecoration(
+      color: _kTileBg,
+      border: Border.all(color: border ?? _kTileBorder, width: 1),
+      borderRadius: BorderRadius.circular(8),
+    );
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 class RightPanel extends ConsumerWidget {
   const RightPanel({super.key});
@@ -20,81 +74,62 @@ class RightPanel extends ConsumerWidget {
         canvasState.nodes.where((n) => n.id == selectedNodeId).firstOrNull;
     if (selectedNode == null) return const SizedBox.shrink();
 
-    // Convert frontend ID → UUID for backend lookups
     final nodeUuid = nodeIdToUuid(selectedNodeId);
-
-    // Disruption alerts for this node (realtime stream)
     final nodeAlerts = ref.watch(alertsForNodeProvider(nodeUuid));
-
-    // Macro environment signals (one-shot fetch)
     final macroAsync = ref.watch(macroSignalsProvider);
-
-    // The currently-selected alternative node (all nodes except the selected one and the Add node)
     final alternatives = canvasState.nodes
         .where((n) => n.id != selectedNodeId && n.type != NodeType.add)
         .toList();
 
     return Container(
       width: 280,
-      decoration: const BoxDecoration(color: Color(0xFF121212)),
+      color: _kPanelBg,
       child: SingleChildScrollView(
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // ── NODE DETAILS CARD ──────────────────────────────────────
+              // ── NODE DETAILS CARD ─────────────────────────────────────────
               _card(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    // Header
-                    const Center(
-                      child: Text(
-                        'Node Details',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
+                    // Section header
+                    _sectionHeader('NODE DETAILS'),
                     const SizedBox(height: 12),
-                    const Divider(height: 1, color: Colors.white12),
+                    const Divider(height: 1, color: _kDivider),
                     const SizedBox(height: 16),
 
                     // Node name chip
                     _nodeChip(selectedNode.label),
 
-                    // ── DISRUPTION ALERTS ──────────────────────────────
+                    // Disruption alerts
                     if (nodeAlerts.isNotEmpty) ...[
                       const SizedBox(height: 16),
-                      ...nodeAlerts.map((alert) => _alertBox(alert)),
+                      ...nodeAlerts.map((a) => _alertBox(a)),
                     ] else if (selectedNode.status == NodeStatus.delayed) ...[
-                      // Fallback: show a static alert when the node is in
-                      // delayed state but no backend alert exists yet.
                       const SizedBox(height: 16),
                       _staticAlertBox(),
                     ],
 
                     const SizedBox(height: 16),
 
-                    // ── MACRO RISK BADGE ──────────────────────────────
+                    // Macro risk
                     macroAsync.when(
                       loading: () => _metricTile(
-                        icon: Icons.public,
-                        iconColor: Colors.white38,
-                        label: 'MACRO RISK',
-                        value: '…',
-                      ),
+                          icon: Icons.public,
+                          iconColor: Colors.white38,
+                          label: 'MACRO RISK',
+                          value: '…'),
                       error: (_, __) => _metricTile(
-                        icon: Icons.public,
-                        iconColor: Colors.white38,
-                        label: 'MACRO RISK',
-                        value: 'N/A',
-                      ),
+                          icon: Icons.public,
+                          iconColor: Colors.white38,
+                          label: 'MACRO RISK',
+                          value: 'N/A'),
                       data: (signals) {
-                        final top = signals.isNotEmpty ? signals.first : null;
+                        final top =
+                            signals.isNotEmpty ? signals.first : null;
                         return _metricTile(
                           icon: Icons.public,
                           iconColor: _riskColor(top?.riskLevel),
@@ -104,47 +139,41 @@ class RightPanel extends ConsumerWidget {
                       },
                     ),
 
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 10),
 
-                    // ── CARBON ESG (static for now; Module 2.6 metric) ─
+                    // Carbon ESG
                     _metricTile(
                       icon: Icons.energy_savings_leaf_outlined,
-                      iconColor: const Color(0xFF2DD4BF),
+                      iconColor: _kTeal,
                       label: 'CARBON ESG',
                       value: '84T CO₂',
                     ),
 
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 10),
 
-                    // ── RELIABILITY ────────────────────────────────────
+                    // Reliability bar
                     _reliabilityTile(47),
                   ],
                 ),
               ),
 
-              // ── TRADE-OFFS CARD ────────────────────────────────────────
+              // ── TRADE-OFFS CARD ───────────────────────────────────────────
               if (alternatives.isNotEmpty) ...[
                 const SizedBox(height: 16),
                 _card(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      const Center(
-                        child: Text(
-                          'Trade-offs',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
+                      _sectionHeader('TRADE-OFFS'),
                       const SizedBox(height: 4),
-                      const Center(
-                        child: Text(
-                          'Tap an alternative node to compare',
-                          style: TextStyle(color: Colors.white38, fontSize: 11),
-                        ),
+                      Text(
+                        'Tap an alternative node to compare',
+                        textAlign: TextAlign.center,
+                        style: _label(
+                            size: 11,
+                            w: FontWeight.w400,
+                            spacing: 0,
+                            color: Colors.white38),
                       ),
                       const SizedBox(height: 16),
                       ...alternatives.map(
@@ -164,54 +193,59 @@ class RightPanel extends ConsumerWidget {
     );
   }
 
-  // ── HELPERS ──────────────────────────────────────────────────────────────
+  // ── HELPERS ─────────────────────────────────────────────────────────────────
 
-  Widget _card({required Widget child}) {
-    return Container(
-      decoration: BoxDecoration(
-        color: const Color(0xFF1A1A1A),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
-      child: child,
-    );
-  }
+  Widget _card({required Widget child}) => Container(
+        decoration: _cardDecoration(),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+        child: child,
+      );
 
-  Widget _nodeChip(String label) {
-    return Align(
-      alignment: Alignment.centerLeft,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.03),
-          borderRadius: BorderRadius.circular(8),
+  Widget _sectionHeader(String title) => Center(
+        child: Text(
+          title,
+          style: _label(
+              size: 11,
+              w: FontWeight.w700,
+              spacing: 1.2,
+              color: Colors.white),
         ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(label, style: const TextStyle(color: Colors.white70, fontSize: 13)),
-            const SizedBox(width: 8),
-            const Icon(Icons.keyboard_arrow_down, color: Colors.white70, size: 16),
-          ],
-        ),
-      ),
-    );
-  }
+      );
 
-  /// A dismissible, real-time disruption alert box fetched from the backend.
+  Widget _nodeChip(String label) => Align(
+        alignment: Alignment.centerLeft,
+        child: Container(
+          padding:
+              const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: _tileDecoration(),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(label,
+                  style: _body(size: 13, color: Colors.white70)),
+              const SizedBox(width: 8),
+              const Icon(Icons.keyboard_arrow_down,
+                  color: Colors.white54, size: 16),
+            ],
+          ),
+        ),
+      );
+
   Widget _alertBox(DisruptionAlert alert) {
-    final isCritical = alert.severity == 'critical' || alert.severity == 'high';
-    final Color borderColor =
+    final isCritical =
+        alert.severity == 'critical' || alert.severity == 'high';
+    final borderColor =
         isCritical ? Colors.redAccent : Colors.orangeAccent;
-    final Color bgColor =
-        isCritical ? const Color(0xFF352024) : const Color(0xFF2D2210);
-    final Color textColor =
+    final bgColor = isCritical
+        ? const Color(0xFF2A1A1A)
+        : const Color(0xFF2A2010);
+    final textColor =
         isCritical ? Colors.redAccent : Colors.orangeAccent;
-    final IconData icon =
+    final icon =
         isCritical ? Icons.warning_amber_rounded : Icons.info_outline;
-    final String title =
+    final title =
         '${alert.severity.toUpperCase()} — ${alert.alertType.replaceAll('_', ' ').toUpperCase()}';
-    final String body = alert.payload['description'] as String? ??
+    final body = alert.payload['description'] as String? ??
         'Disruption detected near this node.';
 
     return Padding(
@@ -220,8 +254,9 @@ class RightPanel extends ConsumerWidget {
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
           color: bgColor,
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: borderColor.withValues(alpha: 0.35), width: 1),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+              color: borderColor.withValues(alpha: 0.35), width: 1),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -230,162 +265,138 @@ class RightPanel extends ConsumerWidget {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Expanded(
-                  child: Text(
-                    title,
-                    style: TextStyle(
-                      color: textColor,
-                      fontSize: 11,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 0.4,
-                    ),
-                  ),
+                  child: Text(title,
+                      style: _label(
+                          size: 11,
+                          w: FontWeight.w700,
+                          spacing: 0.4,
+                          color: textColor)),
                 ),
                 Icon(icon, color: textColor, size: 18),
               ],
             ),
             const SizedBox(height: 6),
-            Text(
-              body,
-              style: const TextStyle(
-                color: Colors.white70,
-                fontSize: 12,
-                height: 1.4,
-              ),
-            ),
+            Text(body,
+                style: _body(
+                    size: 12,
+                    color: Colors.white60)),
           ],
         ),
       ),
     );
   }
 
-  /// Static fallback critical alert (shown when node is delayed locally but
-  /// has no backend disruption record yet).
-  Widget _staticAlertBox() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: const Color(0xFF352024),
-        borderRadius: BorderRadius.circular(12),
-        border:
-            Border.all(color: Colors.redAccent.withValues(alpha: 0.3), width: 1),
-      ),
-      child: const Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'CRITICAL ALERT',
-                style: TextStyle(
-                  color: Colors.redAccent,
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 0.5,
-                ),
-              ),
-              Icon(Icons.warning_amber_rounded,
-                  color: Colors.redAccent, size: 20),
-            ],
-          ),
-          SizedBox(height: 8),
-          Text(
-            'Port congestion nearby.\nPotential 3-day delay on\noutbound shipments to\nHamburg.',
-            style:
-                TextStyle(color: Colors.white70, fontSize: 13, height: 1.4),
-          ),
-        ],
-      ),
-    );
-  }
+  Widget _staticAlertBox() => Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: const Color(0xFF2A1A1A),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+              color: Colors.redAccent.withValues(alpha: 0.3), width: 1),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text('CRITICAL ALERT',
+                    style: _label(
+                        size: 11,
+                        w: FontWeight.w700,
+                        spacing: 0.5,
+                        color: Colors.redAccent)),
+                const Icon(Icons.warning_amber_rounded,
+                    color: Colors.redAccent, size: 18),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Port congestion nearby.\nPotential 3-day delay on outbound shipments to Hamburg.',
+              style: _body(size: 12, color: Colors.white60),
+            ),
+          ],
+        ),
+      );
 
   Widget _metricTile({
     required IconData icon,
     required Color iconColor,
     required String label,
     required String value,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.03),
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Row(children: [
-            Text(
-              label,
-              style: const TextStyle(
-                  color: Colors.white70,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 0.5),
-            ),
-            const SizedBox(width: 6),
-            Icon(icon, color: iconColor, size: 14),
-          ]),
-          Text(
-            value,
-            style: const TextStyle(
-                color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold),
-          ),
-        ],
-      ),
-    );
-  }
+  }) =>
+      Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: _tileDecoration(),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Row(children: [
+              Text(label,
+                  style: _label(
+                      size: 10,
+                      w: FontWeight.w600,
+                      spacing: 0.8,
+                      color: Colors.white70)),
+              const SizedBox(width: 6),
+              Icon(icon, color: iconColor, size: 13),
+            ]),
+            Text(value,
+                style: _label(
+                    size: 13,
+                    w: FontWeight.w700,
+                    spacing: 0,
+                    color: Colors.white)),
+          ],
+        ),
+      );
 
-  Widget _reliabilityTile(int percent) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.03),
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text('RELIABILITY',
-                  style: TextStyle(
-                      color: Colors.white70,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: 0.5)),
-              Text('$percent%',
-                  style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 13,
-                      fontWeight: FontWeight.bold)),
-            ],
-          ),
-          const SizedBox(height: 10),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(2),
-            child: Row(
+  Widget _reliabilityTile(int percent) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: _tileDecoration(),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Expanded(
-                  flex: percent,
-                  child: const SizedBox(
-                      height: 4,
-                      child: ColoredBox(color: Colors.redAccent)),
-                ),
-                Expanded(
-                  flex: 100 - percent,
-                  child: const SizedBox(
-                      height: 4,
-                      child: ColoredBox(color: Color(0xFF1E1E24))),
-                ),
+                Text('RELIABILITY',
+                    style: _label(
+                        size: 10,
+                        w: FontWeight.w600,
+                        spacing: 0.8,
+                        color: Colors.white70)),
+                Text('$percent%',
+                    style: _label(
+                        size: 13,
+                        w: FontWeight.w700,
+                        spacing: 0,
+                        color: Colors.white)),
               ],
             ),
-          ),
-        ],
-      ),
-    );
-  }
+            const SizedBox(height: 10),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(2),
+              child: Row(
+                children: [
+                  Expanded(
+                    flex: percent,
+                    child: const SizedBox(
+                        height: 4,
+                        child: ColoredBox(color: Colors.redAccent)),
+                  ),
+                  Expanded(
+                    flex: 100 - percent,
+                    child: const SizedBox(
+                        height: 4,
+                        child: ColoredBox(color: Color(0xFF1E2228))),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
 
   Color _riskColor(String? level) {
     switch (level) {
@@ -396,12 +407,12 @@ class RightPanel extends ConsumerWidget {
       case 'medium':
         return Colors.yellowAccent;
       default:
-        return Colors.greenAccent;
+        return _kTeal;
     }
   }
 }
 
-// ── TRADE-OFF ROW (stateful — tapping an alternative triggers backend call) ──
+// ── TRADE-OFF ROW ─────────────────────────────────────────────────────────────
 
 class _TradeoffNodeRow extends ConsumerStatefulWidget {
   const _TradeoffNodeRow({
@@ -425,15 +436,12 @@ class _TradeoffNodeRowState extends ConsumerState<_TradeoffNodeRow> {
       'current_node_id': widget.selectedNodeId,
       'alternative_node_id': widget.alternativeNode.id,
     };
+    final tradeoffAsync =
+        _expanded ? ref.watch(tradeoffProvider(params)) : null;
 
-    final tradeoffAsync = _expanded ? ref.watch(tradeoffProvider(params)) : null;
-
-
-
-    final iconColor = widget.alternativeNode.status == NodeStatus.active
-        ? Colors.greenAccent
-        : Colors.white70;
-    final icon = widget.alternativeNode.status == NodeStatus.active
+    final isActive = widget.alternativeNode.status == NodeStatus.active;
+    final iconColor = isActive ? _kTeal : Colors.white54;
+    final statusIcon = isActive
         ? Icons.check_circle_outline
         : Icons.radio_button_unchecked;
 
@@ -442,52 +450,48 @@ class _TradeoffNodeRowState extends ConsumerState<_TradeoffNodeRow> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // ── Node row button ──
+          // Row button
           InkWell(
             onTap: () => setState(() => _expanded = !_expanded),
-            borderRadius: BorderRadius.circular(10),
+            borderRadius: BorderRadius.circular(8),
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 200),
               padding:
                   const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
               decoration: BoxDecoration(
-                color: _expanded
-                    ? Colors.white.withValues(alpha: 0.08)
-                    : Colors.white.withValues(alpha: 0.03),
-                borderRadius: BorderRadius.circular(10),
-                border: _expanded
-                    ? Border.all(
-                        color: const Color(0xFF2DD4BF).withValues(alpha: 0.3))
-                    : null,
+                color: _expanded ? _kTileBg : const Color(0xFF1E2228),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: _expanded
+                      ? _kAccent.withValues(alpha: 0.5)
+                      : _kTileBorder,
+                  width: 1,
+                ),
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    widget.alternativeNode.label,
-                    style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w500),
-                  ),
-                  Row(
-                    children: [
-                      Icon(icon, color: iconColor, size: 15),
-                      const SizedBox(width: 6),
-                      AnimatedRotation(
-                        duration: const Duration(milliseconds: 200),
-                        turns: _expanded ? 0.5 : 0.0,
-                        child: const Icon(Icons.keyboard_arrow_down,
-                            color: Colors.white54, size: 16),
-                      ),
-                    ],
-                  ),
+                  Text(widget.alternativeNode.label,
+                      style: _body(
+                          size: 13,
+                          w: FontWeight.w500,
+                          color: Colors.white)),
+                  Row(children: [
+                    Icon(statusIcon, color: iconColor, size: 14),
+                    const SizedBox(width: 6),
+                    AnimatedRotation(
+                      duration: const Duration(milliseconds: 200),
+                      turns: _expanded ? 0.5 : 0.0,
+                      child: const Icon(Icons.keyboard_arrow_down,
+                          color: Colors.white38, size: 16),
+                    ),
+                  ]),
                 ],
               ),
             ),
           ),
 
-          // ── Expandable tradeoff metrics panel ──
+          // Expandable metrics panel
           if (_expanded)
             AnimatedSize(
               duration: const Duration(milliseconds: 250),
@@ -502,9 +506,7 @@ class _TradeoffNodeRowState extends ConsumerState<_TradeoffNodeRow> {
                             width: 20,
                             height: 20,
                             child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Color(0xFF2DD4BF),
-                            ),
+                                strokeWidth: 2, color: _kTeal),
                           ),
                         ),
                       ),
@@ -517,25 +519,22 @@ class _TradeoffNodeRowState extends ConsumerState<_TradeoffNodeRow> {
     );
   }
 
-  Widget _metricsError(String message) {
-    return Container(
-      margin: const EdgeInsets.only(top: 6),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.red.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.redAccent.withValues(alpha: 0.25)),
-      ),
-      child: Text(
-        'Could not reach backend.\n$message',
-        style: const TextStyle(color: Colors.white54, fontSize: 11),
-      ),
-    );
-  }
+  Widget _metricsError(String message) => Container(
+        margin: const EdgeInsets.only(top: 6),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.red.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(8),
+          border:
+              Border.all(color: Colors.redAccent.withValues(alpha: 0.25)),
+        ),
+        child: Text('Could not reach backend.\n$message',
+            style: _body(size: 11, color: Colors.white38)),
+      );
 
   Widget _metricsPanel(TradeoffAnalysisResponse analysis) {
     final recColor = analysis.overallRecommendation == 'switch'
-        ? Colors.greenAccent
+        ? _kTeal
         : analysis.overallRecommendation == 'stay'
             ? Colors.redAccent
             : Colors.orangeAccent;
@@ -544,42 +543,45 @@ class _TradeoffNodeRowState extends ConsumerState<_TradeoffNodeRow> {
       margin: const EdgeInsets.only(top: 6),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: const Color(0xFF141414),
-        borderRadius: BorderRadius.circular(10),
-        border:
-            Border.all(color: const Color(0xFF2DD4BF).withValues(alpha: 0.15)),
+        color: _kTileBg,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: _kAccent.withValues(alpha: 0.3), width: 1),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Recommendation badge
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text('RECOMMENDATION',
-                  style: TextStyle(
-                      color: Colors.white38,
-                      fontSize: 10,
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: 0.5)),
+              Text('RECOMMENDATION',
+                  style: _label(
+                      size: 10,
+                      w: FontWeight.w600,
+                      spacing: 0.8,
+                      color: Colors.white38)),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
-                  color: recColor.withValues(alpha: 0.12),
+                  color: recColor.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(6),
+                  border: Border.all(
+                      color: recColor.withValues(alpha: 0.4), width: 1),
                 ),
                 child: Text(
                   analysis.overallRecommendation.toUpperCase(),
-                  style: TextStyle(
-                    color: recColor,
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: _label(
+                      size: 10,
+                      w: FontWeight.w700,
+                      spacing: 0.5,
+                      color: recColor),
                 ),
               ),
             ],
           ),
           const SizedBox(height: 12),
+          const Divider(height: 1, color: _kDivider),
+          const SizedBox(height: 10),
           ...analysis.metrics.map((m) => _metricRow(m)),
         ],
       ),
@@ -590,7 +592,8 @@ class _TradeoffNodeRowState extends ConsumerState<_TradeoffNodeRow> {
     final label = _metricLabel(metric.metricType);
     final sign = metric.delta >= 0 ? '+' : '';
     final delta = '$sign${metric.delta.toStringAsFixed(1)} ${metric.unit}';
-    final color = metric.isImprovement ? Colors.greenAccent : Colors.redAccent;
+    final color =
+        metric.isImprovement ? _kTeal : Colors.redAccent;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
@@ -598,24 +601,27 @@ class _TradeoffNodeRowState extends ConsumerState<_TradeoffNodeRow> {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(label,
-              style: const TextStyle(color: Colors.white60, fontSize: 12)),
-          Row(
-            children: [
-              Icon(
-                metric.isImprovement
-                    ? Icons.arrow_downward
-                    : Icons.arrow_upward,
-                color: color,
-                size: 12,
-              ),
-              const SizedBox(width: 4),
-              Text(delta,
-                  style: TextStyle(
-                      color: color,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600)),
-            ],
-          ),
+              style: _label(
+                  size: 12,
+                  w: FontWeight.w500,
+                  spacing: 0,
+                  color: Colors.white60)),
+          Row(children: [
+            Icon(
+              metric.isImprovement
+                  ? Icons.arrow_downward
+                  : Icons.arrow_upward,
+              color: color,
+              size: 12,
+            ),
+            const SizedBox(width: 4),
+            Text(delta,
+                style: _label(
+                    size: 12,
+                    w: FontWeight.w600,
+                    spacing: 0,
+                    color: color)),
+          ]),
         ],
       ),
     );
