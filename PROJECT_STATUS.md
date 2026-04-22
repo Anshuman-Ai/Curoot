@@ -6,7 +6,9 @@ Curoot is a high-end, intelligent supply chain platform featuring a dynamic, nod
 ## Technology Stack
 - **Frontend Framework:** Flutter / Dart
 - **State Management:** Riverpod 3.x (NotifierProvider architecture)
-- **Backend Service:** Supabase (PostgreSQL, Row Level Security, Auth)
+- **Backend API:** FastAPI (Python) — Uvicorn, APScheduler
+- **AI Engine:** Google Gemini 1.5 Flash via `google-genai` SDK (Structured Outputs)
+- **Database & Auth:** Supabase (PostgreSQL, Row Level Security, Realtime WebSockets)
 - **Design System:** Custom Dark-Mode tokens, Google Fonts (`Manrope`)
 
 ---
@@ -42,6 +44,23 @@ Curoot is a high-end, intelligent supply chain platform featuring a dynamic, nod
 ### 5. Supabase State Integrations (`lib/state/settings_provider.dart` & `canvas_provider.dart`)
 - **Strict RLS Enforcement:** All critical providers automatically filter requests by `organization_id` based on the actively selected tenant in the workspace switcher.
 - **Riverpod Upgrades:** Successfully migrated away from deprecated `StateProvider` and `activeColor` elements to support modern `NotifierProvider` logic and `activeThumbColor`.
+
+### 6. Canvas ↔ Supabase Realtime Data Pipeline
+- **Database Migration:** Added `ui_x` and `ui_y` columns to `supply_chain_nodes` via `20260423012300_add_canvas_ui_coordinates.sql`, decoupling pixel canvas coordinates from geographic lat/lon.
+- **Live Data Initialization:** `CanvasNotifier` fetches nodes and edges from Supabase on build, scoped by `organization_id` for 1-Hop isolation. Dummy hardcoded nodes (`supplier_taiwan`, `enterprise_a`, etc.) removed.
+- **Realtime Subscriptions:** `SupabaseService.streamNodes()` subscribes to PostgreSQL Changes on `supply_chain_nodes`, syncing `INSERT`/`UPDATE`/`DELETE` events across multiplayer clients instantly.
+- **Debounced Position Persistence:** Node drag events update local state at 60fps and persist coordinates to Supabase via a 500ms `Timer` debounce to prevent API rate-limit throttling.
+- **Loading States:** Canvas UI displays a `CircularProgressIndicator` while the initial Supabase fetch completes.
+
+### 7. Omni Ingestion Backend (Cold Start & Continuous Sync)
+- **Cold Start AI Parsing (`/api/v1/ingestion/unstructured`):** Accepts raw files (PDFs, CSVs) and routes them to Gemini 1.5 Flash for structured extraction using Pydantic `AIExtractionResult` schema with `response_schema` enforcement.
+- **Modern Push Telemetry (`/api/v1/ingestion/telemetry`):** Accepts JSON heartbeats, strips unauthorized fields via `UniversalFilter`, and routes crisis messages to Gemini NLP for intelligent status classification (`operational`/`pending`/`delayed`/`offline`).
+- **MCP Container Generator (`/api/v1/mcp_mgr/generate`):** Dynamically generates `docker-compose.yml` and `mcp_runner.py` Shock Absorber scripts for on-premise legacy DB sync using SQLite buffering.
+
+### 8. AI Service Upgrade (`backend/app/services/ai_service.py`)
+- **SDK Migration:** Replaced deprecated `google.generativeai` with the modern `google-genai` SDK (`google.genai.Client`).
+- **Graceful Degradation:** If `GEMINI_API_KEY` is not set, the service safely returns stub data without crashing the server, enabling offline development.
+- **Structured Outputs:** Uses Gemini's native Pydantic schema binding for type-safe AI responses.
 
 ---
 
@@ -85,8 +104,9 @@ Curoot
 ---
 
 ## 🟡 Pending / Future Work
-- **Canvas Multiplayer Sockets:** Wire Supabase Realtime subscriptions to track mouse cursors and node dragging across multi-tenant teams.
-- **Backend MCP Pipelines:** Build the Python backend endpoints for the MCP Kill-Switch API that terminates ERP pipelines.
-- **Omni-Ingestion Panel Development:** Flesh out the file/data upload UI inside the Left Panel.
-- **Add Node Flow:** Complete the interactive node creation menu inside the Left Panel.
+- **Multiplayer Cursor Presence:** Track and render other team members' mouse cursors on the canvas in real-time via Supabase Presence channels.
+- **MCP Kill-Switch API:** Build the backend endpoint that terminates active ERP sync containers on demand from the Settings dashboard.
+- **Add Node Flow:** Complete the interactive node creation menu inside the Left Panel (Tri-Layer Discovery: Active → Community → Maps).
 - **Authentication Polishing:** Ensure the Supabase Session handoff efficiently routes unauthenticated users back to the Login Page.
+- **Supabase Migration Deployment:** Run `supabase db push` to apply the `ui_x`/`ui_y` migration to the production instance.
+- **Gemini API Key Configuration:** Set `GEMINI_API_KEY` in the backend `.env` to activate live AI extraction (currently falling back to stubs).

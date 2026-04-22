@@ -19,28 +19,33 @@ This document defines the monorepo file architecture for the platform. The syste
 │   │   ├── api/                      # Routing logic
 │   │   │   └── v1/
 │   │   │       └── endpoints/
-│   │   │           ├── discovery.py  # Tri-Layer pull (Active -> Community -> Maps)
+│   │   │           ├── __init__.py
+│   │   │           ├── discovery.py      # Tri-Layer pull (Active -> Community -> Maps)
 │   │   │           ├── disruption.py
-│   │   │           ├── ingestion.py  # Omni-Format AI / Unstructured Dumps -> Gemini
+│   │   │           ├── ingestion.py      # Cold Start AI + Smart Router telemetry -> Gemini
+│   │   │           ├── invitations.py    # Direct invite endpoint
 │   │   │           ├── macro_env.py
-│   │   │           ├── mcp_mgr.py    # Provisions / manages localized MCP containers
-│   │   │           ├── telemetry.py  # Smart Router -> Direct to Supabase DB
-│   │   │           ├── tradeoffs.py
-│   │   │           └── __init__.py
+│   │   │           ├── marketplace.py    # Community marketplace CRUD
+│   │   │           ├── mcp_mgr.py        # Generates docker-compose + Shock Absorber scripts
+│   │   │           ├── telemetry.py      # Smart Router -> Direct to Supabase DB
+│   │   │           └── tradeoffs.py
 │   │   ├── core/
 │   │   │   ├── config.py             # Environment variables (Supabase URL/Keys, Vertex AI)
 │   │   │   └── security.py           # JWT validation, Universal Filter initialization
 │   │   ├── db/
 │   │   │   └── supabase.py           # Supabase service-role client (for backend bypasses)
 │   │   ├── models/                   # Pydantic schemas validating API payloads
-│   │   │   ├── ai_parser.py          # Multimodal ingestion schemas
+│   │   │   ├── ai_parser.py          # Multimodal ingestion schemas (AIExtractionResult, UniversalFilter)
+│   │   │   ├── discovery.py          # Discovery search request/response schemas
 │   │   │   ├── disruption.py
 │   │   │   ├── enums.py              # Mirrors SQL enums (node_status_enum, etc.)
+│   │   │   ├── invitations.py        # DirectInviteRequest/Response with EmailStr
 │   │   │   ├── macro_env.py
+│   │   │   ├── marketplace.py        # Community marketplace schemas
 │   │   │   ├── telemetry.py          # Strict telemetry ingestion payloads
 │   │   │   └── tradeoffs.py
 │   │   ├── services/
-│   │   │   ├── ai_service.py         # Google Vertex AI / Gemini 2.5 logic (OCR/NLP)
+│   │   │   ├── ai_service.py         # Google Gemini 1.5 Flash via google-genai SDK (Structured Outputs)
 │   │   │   ├── disruption_service.py
 │   │   │   ├── geo_intersect.py
 │   │   │   ├── macro_env_service.py
@@ -116,7 +121,8 @@ This document defines the monorepo file architecture for the platform. The syste
     ├── config.toml                   # Local Supabase configuration
     ├── seed.sql                      # Mock data for organizations, active/faded nodes
     └── migrations/
-        └── 20260407113300_initial_schema.sql
+        ├── 20260407113300_initial_schema.sql
+        └── 20260423012300_add_canvas_ui_coordinates.sql  # Adds ui_x/ui_y for canvas positions
 
 **How to instruct your AI Agent next:**
 1. Save the SQL you provided in the prompt as `supabase/migrations/20260407113300_initial_schema.sql`.

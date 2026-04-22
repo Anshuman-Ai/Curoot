@@ -131,8 +131,18 @@ class _MultiplayerCanvasState extends ConsumerState<MultiplayerCanvas> with Sing
           ),
           
           // Infinite Canvas — wrapped in Listener to enable 2-axis scroll
-          Listener(
-            onPointerSignal: (event) {
+          Consumer(
+            builder: (context, ref, child) {
+              final canvasState = ref.watch(canvasProvider);
+              if (canvasState.isLoading) {
+                return const Center(
+                  child: CircularProgressIndicator(color: Colors.tealAccent),
+                );
+              }
+              return child!;
+            },
+            child: Listener(
+              onPointerSignal: (event) {
               if (event is PointerScrollEvent) {
                 // Prevent InteractiveViewer from consuming this — apply
                 // translation directly so both axes scroll freely.
@@ -194,10 +204,9 @@ class _MultiplayerCanvasState extends ConsumerState<MultiplayerCanvas> with Sing
                                 final scale = _transformationController.value.getMaxScaleOnAxis();
                                 final dx = details.delta.dx / scale;
                                 final dy = details.delta.dy / scale;
-                                ref.read(canvasProvider.notifier).updateNodePosition(
-                                  node.id,
-                                  Offset(node.position.dx + dx, node.position.dy + dy),
-                                );
+                                final newPos = Offset(node.position.dx + dx, node.position.dy + dy);
+                                ref.read(canvasProvider.notifier).updateNodePosition(node.id, newPos);
+                                ref.read(canvasProvider.notifier).saveNodePosition(node.id, newPos);
                               },
                             ),
                           );
@@ -208,6 +217,7 @@ class _MultiplayerCanvasState extends ConsumerState<MultiplayerCanvas> with Sing
                 ),
               ),
             ),
+          ),
           ),
           
 

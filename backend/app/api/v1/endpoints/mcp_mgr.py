@@ -27,7 +27,7 @@ services:
       - TARGET_DB_IP={spec.ip_address}
       - TARGET_TABLE={spec.table_name}
       - SYNC_FREQ={spec.sync_frequency_seconds}
-      - INGESTION_WEBHOOK=https://api.curoot.ai/v1/ingestion/telemetry
+      - INGESTION_WEBHOOK=${{INGESTION_WEBHOOK:-http://localhost:8000/api/v1/ingestion/telemetry}}
     volumes:
       - mcp_local_buffer:/app/buffer
 volumes:
