@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../canvas/add_node_panel.dart';
+import '../settings/settings_page.dart';
 import 'omni_ingestion_panel.dart';
 
 enum LeftPanelTab { none, profile, home, upload, addNode, search, settings }
@@ -165,6 +166,11 @@ class _TrayIcon extends ConsumerWidget {
 
     return InkWell(
       onTap: () {
+        if (tab == LeftPanelTab.settings) {
+          Navigator.of(context).push(MaterialPageRoute(builder: (_) => const SettingsPage()));
+          return;
+        }
+
         final current = ref.read(leftPanelTabProvider);
         if (current == tab) {
           ref.read(leftPanelTabProvider.notifier).setTab(LeftPanelTab.none);
