@@ -6,6 +6,7 @@ import 'edge_painter.dart';
 import 'node_widget.dart';
 import '../panels/left_panel.dart';
 import '../panels/right_panel.dart';
+import '../community/community_screen.dart';
 
 class MultiplayerCanvas extends ConsumerStatefulWidget {
   const MultiplayerCanvas({super.key});
@@ -263,7 +264,7 @@ class _MultiplayerCanvasState extends ConsumerState<MultiplayerCanvas> with Sing
 
                   // ── Community button ───────────────────────────────
                   InkWell(
-                    onTap: () {},
+                    onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const CommunityScreen())),
                     borderRadius: BorderRadius.circular(16),
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),

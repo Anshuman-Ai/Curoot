@@ -83,4 +83,77 @@ class ApiClient {
       throw Exception('Failed to fetch macro signals: ${response.body}');
     }
   }
+
+  Future<Map<String, dynamic>> searchDiscoveryNodes({
+    required String query,
+    required String orgId,
+    double radius = 50.0,
+  }) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/discovery/search'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'query': query,
+        'organization_id': orgId,
+        'radius': radius,
+      }),
+    );
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    } else {
+      throw Exception('Failed to search discovery nodes: ${response.body}');
+    }
+  }
+
+  Future<Map<String, dynamic>> sendDirectInvite({
+    required String orgId,
+    required String name,
+    required String email,
+    required String connectionType,
+    double? lat,
+    double? lon,
+  }) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/invitations/create'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'organization_id': orgId,
+        'name': name,
+        'email': email,
+        'connection_type': connectionType,
+        'lat': lat,
+        'lon': lon,
+      }),
+    );
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    } else {
+      throw Exception('Failed to send direct invite: ${response.body}');
+    }
+  }
+
+  Future<List<dynamic>> fetchCommunityTemplates() async {
+    final response = await http.get(Uri.parse('$baseUrl/marketplace/templates'));
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    } else {
+      throw Exception('Failed to load templates');
+    }
+  }
+
+  Future<Map<String, dynamic>> autoApplyTemplate(String templateId, String orgId) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/marketplace/auto-apply'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'template_id': templateId,
+        'organization_id': orgId,
+      }),
+    );
+    if (response.statusCode == 200 || response.statusCode == 202) {
+      return jsonDecode(response.body);
+    } else {
+      throw Exception('Failed to auto-apply template');
+    }
+  }
 }

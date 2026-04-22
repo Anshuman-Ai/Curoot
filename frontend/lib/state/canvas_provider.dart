@@ -144,6 +144,23 @@ class CanvasNotifier extends Notifier<CanvasState> {
     );
   }
 
+  void updateNodeStatus(String id, NodeStatus newStatus) {
+    state = state.copyWith(
+      nodes: state.nodes.map((n) {
+        if (n.id == id) {
+          return n.copyWith(status: newStatus);
+        }
+        return n;
+      }).toList(),
+    );
+  }
+
+  void addNode(CanvasNode node) {
+    if (!state.nodes.any((n) => n.id == node.id)) {
+      state = state.copyWith(nodes: [...state.nodes, node]);
+    }
+  }
+
   void selectNode(String? id) {
     state = state.copyWith(selectedNodeId: id);
   }

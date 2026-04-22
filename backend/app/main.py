@@ -19,7 +19,9 @@ from app.api.v1.endpoints import (
     discovery,
     disruption,
     ingestion,
+    invitations,
     macro_env,
+    marketplace,
     mcp_mgr,
     telemetry,
     tradeoffs,
@@ -155,6 +157,8 @@ API_V1_PREFIX = "/api/v1"
 app.include_router(ingestion.router, prefix=f"{API_V1_PREFIX}/ingestion", tags=["ingestion"])
 app.include_router(telemetry.router, prefix=API_V1_PREFIX)
 app.include_router(discovery.router, prefix=API_V1_PREFIX)
+app.include_router(invitations.router, prefix=API_V1_PREFIX)
+app.include_router(marketplace.router, prefix=API_V1_PREFIX)
 app.include_router(mcp_mgr.router, prefix=f"{API_V1_PREFIX}/mcp_mgr", tags=["mcp_mgr"])
 app.include_router(disruption.router, prefix=API_V1_PREFIX)   # Module 2.5A
 app.include_router(macro_env.router, prefix=API_V1_PREFIX)    # Module 2.5B
