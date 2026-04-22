@@ -78,6 +78,7 @@ This document defines the monorepo file architecture for the platform. The syste
 │   │   ├── state/
 │   │   │   ├── canvas_provider.dart      # Manages the local 1-Hop Ego-centric view
 │   │   │   ├── disruption_provider.dart
+│   │   │   ├── settings_provider.dart    # Manages Org config, tenant state, UI settings
 │   │   │   └── tradeoffs_provider.dart
 │   │   └── ui/
 │   │       ├── auth/
@@ -88,13 +89,17 @@ This document defines the monorepo file architecture for the platform. The syste
 │   │       │   ├── edge_painter.dart       # Draws routes between 1-Hop connections
 │   │       │   ├── multiplayer_canvas.dart # The core visual node workspace
 │   │       │   └── node_widget.dart        # Individual node rendering (Flash red logic)
+│   │       ├── community/
+│   │       │   └── community_screen.dart   # Marketplace for quick setups
 │   │       ├── modals/
 │   │       │   └── add_node_modal.dart     # The [+] unified search/invite modal
-│   │       └── panels/
-│   │           ├── left_panel.dart         # Side bar icon tray and left panel sidebar
-│   │           ├── mcp_generation_wizard.dart
-│   │           ├── omni_ingestion_panel.dart
-│   │           └── right_panel.dart      # Realtime AI Tradeoffs and Risk comparison UI
+│   │       ├── panels/
+│   │       │   ├── left_panel.dart         # Side bar icon tray and left panel sidebar
+│   │       │   ├── mcp_generation_wizard.dart
+│   │       │   ├── omni_ingestion_panel.dart
+│   │       │   └── right_panel.dart        # Realtime AI Tradeoffs and Risk comparison UI
+│   │       └── settings/
+│   │           └── settings_page.dart      # Comprehensive dashboard UI
 │   └── web/
 │       ├── index.html
 │       └── manifest.json
