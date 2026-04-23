@@ -112,6 +112,8 @@ class ApiClient {
     required String connectionType,
     double? lat,
     double? lon,
+    String? phone,
+    String? channel,
   }) async {
     final response = await http.post(
       Uri.parse('$baseUrl/invitations/create'),
@@ -123,6 +125,8 @@ class ApiClient {
         'connection_type': connectionType,
         'lat': lat,
         'lon': lon,
+        'phone': phone,
+        'channel': channel,
       }),
     );
     if (response.statusCode == 200) {

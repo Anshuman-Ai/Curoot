@@ -119,6 +119,15 @@ All three tracks of the Omni Ingestion gateway are fully implemented and tested:
   - Continuous Sync: MCP generation for PostgreSQL, Oracle, SQL Server
 - **All 9 tests passing** ✅
 
+### 14. Community Quick Setup & Auto-Apply (SRS §2.2) ✅ COMPLETE
+- **Community Screen:** Built a dedicated `CommunityScreen` UI separating marketplace templates from the main canvas.
+- **Backend Refactoring:** Updated RFP services and templates to support PII-sanitized public publishing.
+
+### 15. Node Discovery & Onboarding (SRS §2.3) ✅ COMPLETE
+- **Add Node Flow:** Integrated the interactive "Add Node" discovery menu in the Left Panel and via a floating action button (`_AddNodeFab`).
+- **Hierarchical Discovery (Tier 1-3):** Implemented radius-aware search for Active, Community, and OSM cached nodes.
+- **Multi-Channel Dispatch:** Created invite workflows natively supporting Email and WhatsApp routing, generating tracking links directly on the canvas.
+
 ---
 
 ## 🎨 Design System Tokens
@@ -135,7 +144,6 @@ Curoot enforces a highly customized, premium "dark mode" industrial aesthetic:
 ## 🟡 Pending / Future Work
 - **Multiplayer Cursor Presence:** Track and render other team members' mouse cursors on the canvas in real-time via Supabase Presence channels.
 - **MCP Kill-Switch API:** Build the backend endpoint that terminates active ERP sync containers on demand from the Settings dashboard.
-- **Add Node Flow:** Complete the interactive node creation menu inside the Left Panel (Tri-Layer Discovery: Active → Community → Maps).
 - **Authentication Polishing:** Ensure the Supabase Session handoff efficiently routes unauthenticated users back to the Login Page.
 - **Supabase Migration Deployment:** Run `supabase db push` to apply the initial schema and `ui_x`/`ui_y` migration to the production instance.
 - **AI Model Upgrade Path:** Upgrade from Gemini 1.5 Flash (free tier) to Gemini 2.5 Pro by changing `MODEL_NAME` in `ai_service.py` when ready.

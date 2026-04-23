@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../state/canvas_provider.dart';
 import 'edge_painter.dart';
 import 'node_widget.dart';
+import 'add_node_panel.dart';
 import '../panels/left_panel.dart';
 import '../panels/right_panel.dart';
 import '../community/community_screen.dart';
@@ -15,8 +16,10 @@ class MultiplayerCanvas extends ConsumerStatefulWidget {
   ConsumerState<MultiplayerCanvas> createState() => _MultiplayerCanvasState();
 }
 
-class _MultiplayerCanvasState extends ConsumerState<MultiplayerCanvas> with SingleTickerProviderStateMixin {
-  final TransformationController _transformationController = TransformationController();
+class _MultiplayerCanvasState extends ConsumerState<MultiplayerCanvas>
+    with SingleTickerProviderStateMixin {
+  final TransformationController _transformationController =
+      TransformationController();
   late AnimationController _animationController;
   Animation<Matrix4>? _animation;
 
@@ -25,7 +28,8 @@ class _MultiplayerCanvasState extends ConsumerState<MultiplayerCanvas> with Sing
     super.initState();
     _animationController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 600), // reduced duration for snappier dragging/panning
+      duration: const Duration(
+          milliseconds: 600), // reduced duration for snappier dragging/panning
     );
     _animationController.addListener(() {
       if (_animation != null) {
@@ -49,14 +53,15 @@ class _MultiplayerCanvasState extends ConsumerState<MultiplayerCanvas> with Sing
   void _panToNode(Offset position, {bool animate = true, double? targetZoom}) {
     final screenSize = MediaQuery.of(context).size;
     final screenCenter = Offset(screenSize.width / 2, screenSize.height / 2);
-    
+
     final currentMatrix = _transformationController.value;
     final currentScale = currentMatrix.getMaxScaleOnAxis();
 
     const defaultZoom = 1.2;
-    final double computedScale = currentScale < defaultZoom ? defaultZoom : currentScale;
+    final double computedScale =
+        currentScale < defaultZoom ? defaultZoom : currentScale;
     final targetScale = targetZoom ?? computedScale;
-    
+
     final xTranslation = screenCenter.dx - (position.dx * targetScale);
     final yTranslation = screenCenter.dy - (position.dy * targetScale);
 
@@ -93,7 +98,7 @@ class _MultiplayerCanvasState extends ConsumerState<MultiplayerCanvas> with Sing
   void _searchNodes() {
     final state = ref.read(canvasProvider);
     if (state.nodes.isEmpty) return;
-    
+
     // Cycle/Dropdown to select a node (mocking search)
     showMenu(
       context: context,
@@ -125,11 +130,12 @@ class _MultiplayerCanvasState extends ConsumerState<MultiplayerCanvas> with Sing
             builder: (context, _) {
               return CustomPaint(
                 size: Size.infinite,
-                painter: GridPainter(transform: _transformationController.value),
+                painter:
+                    GridPainter(transform: _transformationController.value),
               );
             },
           ),
-          
+
           // Infinite Canvas — wrapped in Listener to enable 2-axis scroll
           Consumer(
             builder: (context, ref, child) {
@@ -143,85 +149,93 @@ class _MultiplayerCanvasState extends ConsumerState<MultiplayerCanvas> with Sing
             },
             child: Listener(
               onPointerSignal: (event) {
-              if (event is PointerScrollEvent) {
-                // Prevent InteractiveViewer from consuming this — apply
-                // translation directly so both axes scroll freely.
-                final m = _transformationController.value.clone();
-                m.multiply(Matrix4.translationValues(
-                  -event.scrollDelta.dx,
-                  -event.scrollDelta.dy,
-                  0.0,
-                ));
-                _transformationController.value = m;
-              }
-            },
-            child: InteractiveViewer(
-              transformationController: _transformationController,
-              constrained: false,
-              boundaryMargin: const EdgeInsets.all(5000),
-              minScale: 0.1,
-              maxScale: 4.0,
-              // Disable built-in scroll-to-scale so our Listener can
-              // intercept scroll events for free 2-axis panning instead.
-              trackpadScrollCausesScale: false,
-              child: SizedBox(
-                width: 10000,
-                height: 10000,
-                child: Consumer(
-                  builder: (context, ref, _) {
-                    final canvasState = ref.watch(canvasProvider);
-                    return Stack(
-                      clipBehavior: Clip.none,
-                      children: [
-                        // Draw Edges overlapping the identical 0,0 coordinate system
-                        Positioned.fill(
-                          child: CustomPaint(
-                            painter: EdgePainter(
-                              nodes: canvasState.nodes,
-                              edges: canvasState.edges,
+                if (event is PointerScrollEvent) {
+                  // Prevent InteractiveViewer from consuming this — apply
+                  // translation directly so both axes scroll freely.
+                  final m = _transformationController.value.clone();
+                  m.multiply(Matrix4.translationValues(
+                    -event.scrollDelta.dx,
+                    -event.scrollDelta.dy,
+                    0.0,
+                  ));
+                  _transformationController.value = m;
+                }
+              },
+              child: InteractiveViewer(
+                transformationController: _transformationController,
+                constrained: false,
+                boundaryMargin: const EdgeInsets.all(5000),
+                minScale: 0.1,
+                maxScale: 4.0,
+                // Disable built-in scroll-to-scale so our Listener can
+                // intercept scroll events for free 2-axis panning instead.
+                trackpadScrollCausesScale: false,
+                child: SizedBox(
+                  width: 10000,
+                  height: 10000,
+                  child: Consumer(
+                    builder: (context, ref, _) {
+                      final canvasState = ref.watch(canvasProvider);
+                      return Stack(
+                        clipBehavior: Clip.none,
+                        children: [
+                          // Draw Edges overlapping the identical 0,0 coordinate system
+                          Positioned.fill(
+                            child: CustomPaint(
+                              painter: EdgePainter(
+                                nodes: canvasState.nodes,
+                                edges: canvasState.edges,
+                              ),
                             ),
                           ),
-                        ),
 
-                        // Draw Nodes
-                        ...canvasState.nodes.map((node) {
-                          const double widgetWidth = 56.0;
-                          const double widgetHeight = 90.0;
+                          // Draw Nodes
+                          ...canvasState.nodes.map((node) {
+                            const double widgetWidth = 56.0;
+                            const double widgetHeight = 90.0;
 
-                          return Positioned(
-                            left: node.position.dx - (widgetWidth / 2),
-                            top: node.position.dy - (widgetHeight / 2),
-                            child: NodeWidget(
-                              node: node,
-                              onTap: () {
-                                ref.read(canvasProvider.notifier).selectNode(node.id);
-                                _panToNode(node.position);
-                                if (node.type == NodeType.add) {
-                                  ref.read(leftPanelTabProvider.notifier).setTab(LeftPanelTab.addNode);
-                                }
-                              },
-                              onPanUpdate: (details) {
-                                final scale = _transformationController.value.getMaxScaleOnAxis();
-                                final dx = details.delta.dx / scale;
-                                final dy = details.delta.dy / scale;
-                                final newPos = Offset(node.position.dx + dx, node.position.dy + dy);
-                                ref.read(canvasProvider.notifier).updateNodePosition(node.id, newPos);
-                                ref.read(canvasProvider.notifier).saveNodePosition(node.id, newPos);
-                              },
-                            ),
-                          );
-                        }),
-                      ],
-                    );
-                  },
+                            return Positioned(
+                              left: node.position.dx - (widgetWidth / 2),
+                              top: node.position.dy - (widgetHeight / 2),
+                              child: NodeWidget(
+                                node: node,
+                                onTap: () {
+                                  ref
+                                      .read(canvasProvider.notifier)
+                                      .selectNode(node.id);
+                                  _panToNode(node.position);
+                                  if (node.type == NodeType.add) {
+                                    ref
+                                        .read(leftPanelTabProvider.notifier)
+                                        .setTab(LeftPanelTab.addNode);
+                                  }
+                                },
+                                onPanUpdate: (details) {
+                                  final scale = _transformationController.value
+                                      .getMaxScaleOnAxis();
+                                  final dx = details.delta.dx / scale;
+                                  final dy = details.delta.dy / scale;
+                                  final newPos = Offset(node.position.dx + dx,
+                                      node.position.dy + dy);
+                                  ref
+                                      .read(canvasProvider.notifier)
+                                      .updateNodePosition(node.id, newPos);
+                                  ref
+                                      .read(canvasProvider.notifier)
+                                      .saveNodePosition(node.id, newPos);
+                                },
+                              ),
+                            );
+                          }),
+                        ],
+                      );
+                    },
+                  ),
                 ),
               ),
             ),
           ),
-          ),
-          
 
-          
           // Top Right: Search + Recenter + Community — horizontal row
           Positioned(
             top: 24,
@@ -247,7 +261,8 @@ class _MultiplayerCanvasState extends ConsumerState<MultiplayerCanvas> with Sing
                           color: const Color(0xFF22222A),
                           borderRadius: BorderRadius.circular(14),
                         ),
-                        child: const Icon(Icons.search, color: Colors.white70, size: 22),
+                        child: const Icon(Icons.search,
+                            color: Colors.white70, size: 22),
                       ),
                     ),
                   ),
@@ -266,7 +281,8 @@ class _MultiplayerCanvasState extends ConsumerState<MultiplayerCanvas> with Sing
                           color: Colors.tealAccent,
                           borderRadius: BorderRadius.circular(14),
                         ),
-                        child: const Icon(Icons.my_location, color: Colors.black87, size: 22),
+                        child: const Icon(Icons.my_location,
+                            color: Colors.black87, size: 22),
                       ),
                     ),
                   ),
@@ -274,10 +290,12 @@ class _MultiplayerCanvasState extends ConsumerState<MultiplayerCanvas> with Sing
 
                   // ── Community button ───────────────────────────────
                   InkWell(
-                    onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const CommunityScreen())),
+                    onTap: () => Navigator.of(context).push(MaterialPageRoute(
+                        builder: (_) => const CommunityScreen())),
                     borderRadius: BorderRadius.circular(16),
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 20, vertical: 12),
                       decoration: BoxDecoration(
                         color: const Color(0xFF22222A),
                         borderRadius: BorderRadius.circular(16),
@@ -303,7 +321,7 @@ class _MultiplayerCanvasState extends ConsumerState<MultiplayerCanvas> with Sing
               ),
             ),
           ),
-          
+
           // Node Details / Trade Offs Panel
           Consumer(
             builder: (context, ref, _) {
@@ -327,6 +345,13 @@ class _MultiplayerCanvasState extends ConsumerState<MultiplayerCanvas> with Sing
             bottom: 0,
             child: SafeArea(child: LeftPanel()),
           ),
+
+          // ── Floating [+] FAB — Node Discovery & Onboarding entry point ──
+          const Positioned(
+            right: 28,
+            bottom: 32,
+            child: _AddNodeFab(),
+          ),
         ],
       ),
     );
@@ -335,7 +360,7 @@ class _MultiplayerCanvasState extends ConsumerState<MultiplayerCanvas> with Sing
 
 class GridPainter extends CustomPainter {
   final Matrix4 transform;
-  
+
   GridPainter({required this.transform});
 
   @override
@@ -374,3 +399,97 @@ class GridPainter extends CustomPainter {
   }
 }
 
+// ══════════════════════════════════════════════════════════════════════════════
+// Floating [+] FAB — opens AddNodePanel in a bottom sheet
+// SRS §2.3 Phase 1: canonical canvas entry point for Node Discovery
+// ══════════════════════════════════════════════════════════════════════════════
+class _AddNodeFab extends StatefulWidget {
+  const _AddNodeFab();
+  @override
+  State<_AddNodeFab> createState() => _AddNodeFabState();
+}
+
+class _AddNodeFabState extends State<_AddNodeFab>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _pulse;
+  late Animation<double> _scale;
+
+  @override
+  void initState() {
+    super.initState();
+    _pulse = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    )..repeat(reverse: true);
+    _scale = Tween<double>(begin: 1.0, end: 1.06).animate(
+      CurvedAnimation(parent: _pulse, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _pulse.dispose();
+    super.dispose();
+  }
+
+  void _openPanel() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => DraggableScrollableSheet(
+        initialChildSize: 0.65,
+        minChildSize: 0.4,
+        maxChildSize: 0.92,
+        expand: false,
+        builder: (_, scrollController) => Container(
+          decoration: const BoxDecoration(
+            color: Color(0xFF16161E),
+            borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+          ),
+          child: Column(children: [
+            // Drag handle
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 10),
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.white24,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const Expanded(child: AddNodePanel()),
+          ]),
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ScaleTransition(
+      scale: _scale,
+      child: GestureDetector(
+        onTap: _openPanel,
+        child: Container(
+          width: 60,
+          height: 60,
+          decoration: BoxDecoration(
+            color: const Color(0xFF2DD4BF),
+            shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF2DD4BF).withValues(alpha: 0.45),
+                blurRadius: 20,
+                spreadRadius: 2,
+              ),
+            ],
+          ),
+          child: const Icon(Icons.add, color: Colors.black87, size: 32),
+        ),
+      ),
+    );
+  }
+}
