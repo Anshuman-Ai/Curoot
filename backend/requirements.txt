@@ -12,3 +12,6 @@ apscheduler>=3.10.0            # background scan scheduling (disruption every 15
 # Testing
 pytest>=8.0.0
 pytest-asyncio>=0.23.0
+
+# LLM integration
+google-genai>=0.3.0

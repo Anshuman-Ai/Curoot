@@ -159,14 +159,16 @@ class RightPanel extends ConsumerWidget {
               ),
 
               // ── HEARTBEAT PANEL (MODULE 2.7) ──────────────────────────────
-              const SizedBox(height: 16),
-              _card(
-                child: HeartbeatPanel(
-                  nodeId: selectedNode.id,
-                  nodeName: selectedNode.label,
-                  node: selectedNode,
+              if (selectedNodeId != 'you' && selectedNodeId != 'add') ...[
+                const SizedBox(height: 16),
+                _card(
+                  child: HeartbeatPanel(
+                    nodeId: nodeUuid,
+                    nodeName: selectedNode.label,
+                    node: selectedNode,
+                  ),
                 ),
-              ),
+              ],
 
               // ── TRADE-OFFS CARD ───────────────────────────────────────────
               if (alternatives.isNotEmpty) ...[
