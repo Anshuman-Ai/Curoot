@@ -81,27 +81,38 @@ All three tracks of the Omni Ingestion gateway are fully implemented and tested:
 - Two distinct endpoints (`/unstructured` and `/telemetry`) with crisis-message branching.
 - Advanced AI compute is only invoked for complex crisis resolution and initial entity mapping — standard logistics tracking bypasses the LLM entirely.
 
-### 8. AI Service (`backend/app/services/ai_service.py`)
+### 8. The "Heartbeat" Module & AI-Assisted Remote Control (SRS §2.7) ✅ COMPLETE
+- **Conversational Magic Link (The "Remote Control"):** 
+  - Tokenized Magic Link system allowing suppliers to report statuses via a frictionless Progressive Web App (PWA) chat interface (`supplier_chat.html`).
+  - Pre-Database Local Parsing using Gemini 1.5 Flash to extract `status` (operational/pending/delayed/offline), `latency_hours`, and `reason` from natural language updates.
+  - OEM dispatch functionality directly from the canvas to ping suppliers.
+- **Database-Driven Orchestration:** 
+  - Single JSON payload fan-out. A message writes to the `messages` table, updates `supply_chain_nodes` status/timestamps, and triggers a real-time webhook broadcast to update the canvas instantly without heavy polling.
+- **The "Dark Node" Predictive Engine:** 
+  - An APScheduler-driven risk engine (`dark_node_engine.py`) that calculates a composite score based on: Relational Impact, Historical Reliability, Macro-Environmental Fusion, and Silence Duration.
+  - Automated Ping: If a node crosses the 80% risk threshold, it automatically triggers a targeted status request directly to the supplier's Magic Link.
+
+### 9. AI Service (`backend/app/services/ai_service.py`)
 - **Model:** Gemini 1.5 Flash (free tier) — one-line swap to upgrade to 2.5 Pro later.
 - **SDK:** Modern `google-genai` SDK (`google.genai.Client`) with Structured Outputs.
 - **Graceful Degradation:** Returns stub data when `GEMINI_API_KEY` is not set.
 - **Capabilities:** File parsing (multimodal), crisis NLP classification, Co-Pilot advisory generation, MCP natural-language prompts.
 
-### 9. Supabase Schema (`supabase/migrations/20260407113300_initial_schema.sql`)
-- **19 Tables:** organizations, organization_members, supply_chain_nodes, node_edges, ingestion_jobs, mcp_containers, telemetry_events, disruption_alerts, alert_state, macro_environment_signals, community_templates, template_nodes, node_invitations, rfp_requests, tradeoff_analyses, tradeoff_metrics, messages, communication_logs, audit.audit_log.
+### 10. Supabase Schema (`supabase/migrations/`)
+- **20 Tables:** organizations, organization_members, supply_chain_nodes, node_edges, ingestion_jobs, mcp_containers, telemetry_events, disruption_alerts, alert_state, macro_environment_signals, community_templates, template_nodes, node_invitations, rfp_requests, tradeoff_analyses, tradeoff_metrics, messages, communication_logs, magic_link_tokens, audit.audit_log.
 - **Indexes:** GiST (geospatial), BRIN (time-series), GIN (JSONB), partial indexes for active records.
 - **RLS Policies:** Organization-scoped isolation on all tenant tables.
 - **Audit Schema:** Append-only regulatory logging with 7-year retention.
 
-### 10. Telemetry Events System
+### 11. Telemetry Events System
 - **Model (`backend/app/models/telemetry.py`):** `TelemetryEvent` and `TelemetryEventResponse` Pydantic schemas.
 - **Endpoints (`/api/v1/telemetry/events`):** POST to record events, GET to query by node_id with ordering and pagination.
 
-### 11. Docker Compose (`docker-compose.yml`)
+### 12. Docker Compose (`docker-compose.yml`)
 - **Full-stack local dev:** FastAPI backend service + optional MCP connector (activated via `--profile mcp`).
 - **Environment-driven:** All configuration via `.env` file.
 
-### 12. Test Suite (`backend/test_omni_layer.py`)
+### 13. Test Suite (`backend/test_omni_layer.py`)
 - **9 integration tests** covering all three tracks:
   - Cold Start: CSV, PDF binary, email `.eml` file uploads
   - Modern Push: standard telemetry, crisis NLP, zero-trust key stripping

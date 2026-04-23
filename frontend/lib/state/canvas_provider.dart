@@ -37,6 +37,9 @@ class CanvasNode {
   final NodeType type;
   final NodeStatus status;
   final Offset position;
+  final bool isDarkNode;
+  final double heartbeatConfidence;
+  final String? lastHeartbeatAt;
 
   CanvasNode({
     required this.id,
@@ -44,6 +47,9 @@ class CanvasNode {
     required this.type,
     required this.status,
     required this.position,
+    this.isDarkNode = false,
+    this.heartbeatConfidence = 1.0,
+    this.lastHeartbeatAt,
   });
 
   CanvasNode copyWith({
@@ -52,6 +58,9 @@ class CanvasNode {
     NodeType? type,
     NodeStatus? status,
     Offset? position,
+    bool? isDarkNode,
+    double? heartbeatConfidence,
+    String? lastHeartbeatAt,
   }) {
     return CanvasNode(
       id: id ?? this.id,
@@ -59,6 +68,9 @@ class CanvasNode {
       type: type ?? this.type,
       status: status ?? this.status,
       position: position ?? this.position,
+      isDarkNode: isDarkNode ?? this.isDarkNode,
+      heartbeatConfidence: heartbeatConfidence ?? this.heartbeatConfidence,
+      lastHeartbeatAt: lastHeartbeatAt ?? this.lastHeartbeatAt,
     );
   }
 }
@@ -106,6 +118,7 @@ class CanvasState {
 class CanvasNotifier extends Notifier<CanvasState> {
   RealtimeChannel? _realtimeChannel;
   RealtimeChannel? _edgesRealtimeChannel;
+  RealtimeChannel? _heartbeatChannel;
   Timer? _debounce;
 
   @override
@@ -113,6 +126,7 @@ class CanvasNotifier extends Notifier<CanvasState> {
     ref.onDispose(() {
       _realtimeChannel?.unsubscribe();
       _edgesRealtimeChannel?.unsubscribe();
+      _heartbeatChannel?.unsubscribe();
       _debounce?.cancel();
     });
 
@@ -157,13 +171,18 @@ class CanvasNotifier extends Notifier<CanvasState> {
         // Fallback for unpositioned nodes is handled near the center (5000, 5000)
         final double x = n['ui_x']?.toDouble() ?? (5000.0 + (n['id'].hashCode % 200 - 100));
         final double y = n['ui_y']?.toDouble() ?? (4800.0 + (n['id'].hashCode % 200 - 100));
+        final bool isDark = n['is_dark_node'] == true;
+        final double hbConf = (n['heartbeat_confidence'] ?? 1.0).toDouble();
         
         return CanvasNode(
           id: n['id'].toString(),
           label: n['name'] ?? 'Unknown Node',
           type: _parseNodeType(n['node_type']),
-          status: _parseNodeStatus(n['status']),
+          status: isDark ? NodeStatus.offline : _parseNodeStatus(n['status']),
           position: Offset(x, y),
+          isDarkNode: isDark,
+          heartbeatConfidence: hbConf,
+          lastHeartbeatAt: n['last_heartbeat_at']?.toString(),
         );
       }).toList();
 
@@ -190,6 +209,14 @@ class CanvasNotifier extends Notifier<CanvasState> {
 
       // Setup Realtime for edges (so Cold Start / ingestion edges appear live)
       _edgesRealtimeChannel = supabase.streamEdges(kFrontendDefaultOrgId, _handleEdgeRealtimeUpdate);
+
+      // Setup Realtime for heartbeat updates (Module 2.7)
+      _heartbeatChannel = supabase.streamHeartbeat(
+        kFrontendDefaultOrgId,
+        _handleHeartbeatUpdate,
+        _handleOemDispatch,
+        _handleAutoPing,
+      );
     } catch (e) {
       debugPrint('Error initializing canvas data: $e');
       state = state.copyWith(isLoading: false);
@@ -202,13 +229,18 @@ class CanvasNotifier extends Notifier<CanvasState> {
       final id = data['id'].toString();
       final double x = data['ui_x']?.toDouble() ?? 5000.0;
       final double y = data['ui_y']?.toDouble() ?? 4800.0;
+      final bool isDark = data['is_dark_node'] == true;
+      final double hbConf = (data['heartbeat_confidence'] ?? 1.0).toDouble();
       
       final updatedNode = CanvasNode(
         id: id,
         label: data['name'] ?? 'Unknown',
         type: _parseNodeType(data['node_type']),
-        status: _parseNodeStatus(data['status']),
+        status: isDark ? NodeStatus.offline : _parseNodeStatus(data['status']),
         position: Offset(x, y),
+        isDarkNode: isDark,
+        heartbeatConfidence: hbConf,
+        lastHeartbeatAt: data['last_heartbeat_at']?.toString(),
       );
 
       final exists = state.nodes.any((n) => n.id == id);
@@ -225,6 +257,39 @@ class CanvasNotifier extends Notifier<CanvasState> {
         nodes: state.nodes.where((n) => n.id != id).toList(),
       );
     }
+  }
+
+  // --- Module 2.7: Heartbeat Realtime handlers ---
+
+  void _handleHeartbeatUpdate(dynamic payload) {
+    final data = payload is Map ? payload : {};
+    final nodeId = data['node_id']?.toString() ?? '';
+    if (nodeId.isEmpty) return;
+    final newStatus = _parseNodeStatus(data['status']?.toString());
+    state = state.copyWith(
+      nodes: state.nodes.map((n) {
+        if (n.id == nodeId) {
+          return n.copyWith(
+            status: newStatus,
+            isDarkNode: false,
+            heartbeatConfidence: 1.0,
+          );
+        }
+        return n;
+      }).toList(),
+    );
+  }
+
+  void _handleOemDispatch(dynamic payload) {
+    // OEM dispatch — no visual change needed, chat panel handles it
+    debugPrint('[Heartbeat] OEM dispatch received: $payload');
+  }
+
+  void _handleAutoPing(dynamic payload) {
+    final data = payload is Map ? payload : {};
+    final pingedIds = List<String>.from(data['pinged_node_ids'] ?? []);
+    if (pingedIds.isEmpty) return;
+    debugPrint('[Heartbeat] Auto-ping sent to: $pingedIds');
   }
 
   NodeType _parseNodeType(String? type) {

@@ -24,6 +24,7 @@ This document defines the monorepo file architecture for the platform. The syste
 │   │   │           ├── __init__.py
 │   │   │           ├── discovery.py      # Tri-Layer pull (Active → Community → Maps)
 │   │   │           ├── disruption.py     # Module 2.5A — Disruption alert endpoints
+│   │   │           ├── heartbeat.py      # Module 2.7 — Magic Link API and OEM Dispatch
 │   │   │           ├── ingestion.py      # SRS §2.1 — Cold Start AI parsing + Smart Router telemetry
 │   │   │           │                     #   POST /unstructured — PDF/CSV/email → Gemini → Supabase
 │   │   │           │                     #   POST /telemetry — UniversalFilter → DB or AI Co-Pilot
@@ -34,6 +35,7 @@ This document defines the monorepo file architecture for the platform. The syste
 │   │   │           │                     #   POST /generate — Dynamic per DB type (Postgres/MySQL/Oracle/SQL Server)
 │   │   │           │                     #   Generates docker-compose.yml, Dockerfile, mcp_runner.py
 │   │   │           │                     #   AI natural-language prompt via Gemini
+│   │   │           ├── supplier_chat.py  # Module 2.7 — Supplier PWA backend (token auth)
 │   │   │           ├── telemetry.py      # Telemetry events — POST/GET /telemetry/events
 │   │   │           └── tradeoffs.py      # Module 2.6 — Actionable tradeoff analysis
 │   │   ├── core/
@@ -47,6 +49,7 @@ This document defines the monorepo file architecture for the platform. The syste
 │   │   │   ├── discovery.py             # Discovery search request/response schemas
 │   │   │   ├── disruption.py            # Disruption alert models & broadcast payloads
 │   │   │   ├── enums.py                 # SQL enum mirrors (node_status_enum, etc.)
+│   │   │   ├── heartbeat.py             # Heartbeat chat models, NLP parsed payload, Dark Node scores
 │   │   │   ├── invitations.py           # DirectInviteRequest/Response
 │   │   │   ├── macro_env.py             # Macro-environment signal models
 │   │   │   ├── marketplace.py           # Community marketplace schemas
@@ -58,8 +61,10 @@ This document defines the monorepo file architecture for the platform. The syste
 │   │   │   │                            #   2. extract_status_from_crisis() — NLP crisis classification
 │   │   │   │                            #   3. generate_crisis_advisory() — Co-Pilot advisory text
 │   │   │   │                            #   4. generate_mcp_prompt() — MCP natural-language prompt
+│   │   │   ├── dark_node_engine.py      # Module 2.7.3 — Predictive engine & Auto-Ping scheduler
 │   │   │   ├── disruption_service.py    # Disruption scan orchestration
 │   │   │   ├── geo_intersect.py         # Geospatial intersection logic
+│   │   │   ├── heartbeat_service.py     # Module 2.7.1 — Magic link, Gemini NLP parsing, Orchestration
 │   │   │   ├── macro_env_service.py     # Macro-environment signal aggregation
 │   │   │   ├── rfp_service.py           # RFP request handling
 │   │   │   ├── risk_classifier.py       # Risk level classification
@@ -67,6 +72,8 @@ This document defines the monorepo file architecture for the platform. The syste
 │   │   │   └── webhooks.py              # Supabase Realtime alert broadcasting
 │   │   └── utils/
 │   │       └── rate_limiter.py          # Token-bucket rate limiter for external APIs
+│   ├── static/                          # Standalone web assets
+│   │   └── supplier_chat.html           # Module 2.7 — Frictionless Supplier PWA
 │   ├── tests/
 │   │   ├── test_disruption.py
 │   │   ├── test_tradeoffs.py
@@ -97,6 +104,7 @@ This document defines the monorepo file architecture for the platform. The syste
 │   │   ├── state/
 │   │   │   ├── canvas_provider.dart      # Manages the local 1-Hop Ego-centric view
 │   │   │   ├── disruption_provider.dart
+│   │   │   ├── heartbeat_provider.dart   # Chat history and Magic Link states
 │   │   │   ├── settings_provider.dart    # Manages Org config, tenant state, UI settings
 │   │   │   └── tradeoffs_provider.dart
 │   │   └── ui/
@@ -116,6 +124,7 @@ This document defines the monorepo file architecture for the platform. The syste
 │   │       │   ├── left_panel.dart       # Side bar icon tray and left panel sidebar
 │   │       │   ├── mcp_generation_wizard.dart  # 4-step MCP Docker container wizard
 │   │       │   ├── omni_ingestion_panel.dart   # File upload + webhook config + pipeline status
+│   │       │   ├── heartbeat_panel.dart      # Conversational remote control UI
 │   │       │   └── right_panel.dart      # Realtime AI Tradeoffs and Risk comparison UI
 │   │       └── settings/
 │   │           └── settings_page.dart    # Comprehensive dashboard UI
@@ -140,5 +149,6 @@ This document defines the monorepo file architecture for the platform. The syste
     ├── seed.sql                          # Mock data for organizations, active/faded nodes
     └── migrations/
         ├── 20260407113300_initial_schema.sql       # Full schema — 19 tables, indexes, RLS, audit
-        └── 20260423012300_add_canvas_ui_coordinates.sql  # Adds ui_x/ui_y for canvas positions
+        ├── 20260423012300_add_canvas_ui_coordinates.sql  # Adds ui_x/ui_y for canvas positions
+        └── 20260424_heartbeat_module.sql           # Adds magic_link_tokens, updates node_data for dark nodes
 ```

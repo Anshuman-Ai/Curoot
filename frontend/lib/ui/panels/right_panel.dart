@@ -6,6 +6,7 @@ import '../../state/disruption_provider.dart';
 import '../../state/tradeoffs_provider.dart';
 import '../../models/disruption_models.dart';
 import '../../models/tradeoff_models.dart';
+import 'heartbeat_panel.dart';
 
 // ── Shared design tokens (mirrors login / signup pages) ──────────────────────
 const _kPanelBg      = Colors.transparent;
@@ -157,6 +158,16 @@ class RightPanel extends ConsumerWidget {
                 ),
               ),
 
+              // ── HEARTBEAT PANEL (MODULE 2.7) ──────────────────────────────
+              const SizedBox(height: 16),
+              _card(
+                child: HeartbeatPanel(
+                  nodeId: selectedNode.id,
+                  nodeName: selectedNode.label,
+                  node: selectedNode,
+                ),
+              ),
+
               // ── TRADE-OFFS CARD ───────────────────────────────────────────
               if (alternatives.isNotEmpty) ...[
                 const SizedBox(height: 16),
@@ -221,8 +232,11 @@ class RightPanel extends ConsumerWidget {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text(label,
-                  style: _body(size: 13, color: Colors.white70)),
+              Flexible(
+                child: Text(label,
+                    overflow: TextOverflow.ellipsis,
+                    style: _body(size: 13, color: Colors.white70)),
+              ),
               const SizedBox(width: 8),
               const Icon(Icons.keyboard_arrow_down,
                   color: Colors.white54, size: 16),

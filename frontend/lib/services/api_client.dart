@@ -156,4 +156,81 @@ class ApiClient {
       throw Exception('Failed to auto-apply template');
     }
   }
+
+  // --- Module 2.7: Heartbeat & AI-Assisted Remote Control ---
+
+  Future<Map<String, dynamic>> generateMagicLink({
+    required List<String> nodeIds,
+    required String orgId,
+    int expiryDays = 7,
+  }) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/heartbeat/magic-link'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'node_ids': nodeIds,
+        'organization_id': orgId,
+        'expiry_days': expiryDays,
+      }),
+    );
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    } else {
+      throw Exception('Failed to generate magic link: ${response.body}');
+    }
+  }
+
+  Future<Map<String, dynamic>> sendOemMessage({
+    required String orgId,
+    required List<String> nodeIds,
+    required String message,
+  }) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/heartbeat/dispatch'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'organization_id': orgId,
+        'node_ids': nodeIds,
+        'message': message,
+      }),
+    );
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    } else {
+      throw Exception('Failed to dispatch message: ${response.body}');
+    }
+  }
+
+  Future<Map<String, dynamic>> fetchChatHistory(String nodeId, {int limit = 50}) async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/heartbeat/chat-history/$nodeId?limit=$limit'),
+    );
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    } else {
+      throw Exception('Failed to fetch chat history: ${response.body}');
+    }
+  }
+
+  Future<Map<String, dynamic>> fetchDarkNodes(String orgId) async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/heartbeat/dark-nodes?org_id=$orgId'),
+    );
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    } else {
+      throw Exception('Failed to fetch dark nodes: ${response.body}');
+    }
+  }
+
+  Future<Map<String, dynamic>> pingDarkNode(String nodeId, String orgId) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/heartbeat/ping/$nodeId?org_id=$orgId'),
+    );
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    } else {
+      throw Exception('Failed to ping dark node: ${response.body}');
+    }
+  }
 }

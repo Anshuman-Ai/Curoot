@@ -35,7 +35,8 @@ organizations
 │   ├── telemetry_events
 │   ├── disruption_alerts
 │   ├── node_invitations
-│   └── rfp_requests
+│   ├── rfp_requests
+│   └── magic_link_tokens
 │
 ├── community_templates
 │   └── template_nodes
@@ -234,7 +235,18 @@ message_id → messages.id
 Nature:
 
 Immutable (append-only)
-4.18 audit.audit_log
+4.18 magic_link_tokens
+
+FKs:
+
+node_id → supply_chain_nodes.id
+organization_id → organizations.id
+
+Constraints:
+
+Unique token
+is_revoked boolean flag
+4.19 audit.audit_log
 
 FKs (logical, not enforced):
 

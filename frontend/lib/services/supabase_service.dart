@@ -86,4 +86,65 @@ class SupabaseService {
     ).subscribe();
     return channel;
   }
+
+  // --- Module 2.7: Heartbeat ---
+
+  /// Subscribe to the org's heartbeat broadcast channel for live chat updates
+  RealtimeChannel streamHeartbeat(
+    String organizationId,
+    void Function(dynamic payload) onHeartbeat,
+    void Function(dynamic payload) onOemDispatch,
+    void Function(dynamic payload) onAutoPing,
+  ) {
+    final channelName = 'org:$organizationId:heartbeat';
+    final channel = client.channel(channelName);
+    channel
+      .onBroadcast(event: 'heartbeat_update', callback: onHeartbeat)
+      .onBroadcast(event: 'oem_dispatch', callback: onOemDispatch)
+      .onBroadcast(event: 'auto_ping_sent', callback: onAutoPing)
+      .subscribe();
+    return channel;
+  }
+
+  /// Subscribe to messages table changes for a specific node (chat updates)
+  RealtimeChannel streamMessages(
+    String nodeId,
+    void Function(PostgresChangePayload payload) onData,
+  ) {
+    final channel = client.channel('public:messages:node_$nodeId');
+    channel.onPostgresChanges(
+      event: PostgresChangeEvent.insert,
+      schema: 'public',
+      table: 'messages',
+      filter: PostgresChangeFilter(
+        type: PostgresChangeFilterType.eq,
+        column: 'node_id',
+        value: nodeId,
+      ),
+      callback: onData,
+    ).subscribe();
+    return channel;
+  }
+
+  /// Fetch chat history for a specific node
+  Future<List<Map<String, dynamic>>> fetchChatHistory(String nodeId, {int limit = 50}) async {
+    final response = await client
+        .from('messages')
+        .select('id, content, message_type, parsed_data, parse_confidence, created_at')
+        .eq('node_id', nodeId)
+        .order('created_at', ascending: true)
+        .limit(limit);
+    return List<Map<String, dynamic>>.from(response);
+  }
+
+  /// Fetch dark nodes for an organisation
+  Future<List<Map<String, dynamic>>> fetchDarkNodes(String organizationId) async {
+    final response = await client
+        .from('supply_chain_nodes')
+        .select('id, name, status, is_dark_node, heartbeat_confidence, last_heartbeat_at, volume_weight')
+        .eq('organization_id', organizationId)
+        .eq('is_dark_node', true)
+        .isFilter('deleted_at', null);
+    return List<Map<String, dynamic>>.from(response);
+  }
 }

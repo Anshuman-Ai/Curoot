@@ -44,7 +44,7 @@ class _NodeWidgetState extends State<NodeWidget>
   }
 
   void _updatePulse() {
-    if (widget.node.status == NodeStatus.delayed) {
+    if (widget.node.status == NodeStatus.delayed || widget.node.isDarkNode) {
       _pulseController.repeat(reverse: true);
     } else {
       _pulseController.stop();
@@ -63,24 +63,42 @@ class _NodeWidgetState extends State<NodeWidget>
     Color statusColor;
     double nodeOpacity = 1.0;
     IconData? statusIndicator;
+    final bool isDark = widget.node.isDarkNode;
 
-    switch (widget.node.status) {
-      case NodeStatus.active:
-        statusColor = Colors.tealAccent;
-        break;
-      case NodeStatus.pending:
-        statusColor = Colors.amber;
-        nodeOpacity = 0.5; // Faded if unverified/pending (SRS §2.3)
-        statusIndicator = Icons.hourglass_empty;
-        break;
-      case NodeStatus.delayed:
-        statusColor = Colors.redAccent;
-        break;
-      case NodeStatus.offline:
-        statusColor = const Color(0xFF555555);
-        nodeOpacity = 0.30; // Dark Node — very faded (SRS §2.7.3)
-        statusIndicator = Icons.signal_wifi_off;
-        break;
+    // Dark Node override (SRS §2.7.3)
+    if (isDark) {
+      statusColor = const Color(0xFF6B5B7B); // grey-purple for dark nodes
+      nodeOpacity = 0.35;
+      statusIndicator = Icons.help_outline; // ? icon for unknown state
+    } else {
+      switch (widget.node.status) {
+        case NodeStatus.active:
+          statusColor = Colors.tealAccent;
+          break;
+        case NodeStatus.pending:
+          statusColor = Colors.amber;
+          nodeOpacity = 0.5; // Faded if unverified/pending (SRS §2.3)
+          statusIndicator = Icons.hourglass_empty;
+          break;
+        case NodeStatus.delayed:
+          statusColor = Colors.redAccent;
+          break;
+        case NodeStatus.offline:
+          statusColor = const Color(0xFF555555);
+          nodeOpacity = 0.30; // Dark Node — very faded (SRS §2.7.3)
+          statusIndicator = Icons.signal_wifi_off;
+          break;
+      }
+    }
+
+    // Check if recently heartbeat'd (within 1 hour)
+    bool recentHeartbeat = false;
+    if (!isDark && widget.node.lastHeartbeatAt != null) {
+      try {
+        final lastHb = DateTime.parse(widget.node.lastHeartbeatAt!);
+        final diff = DateTime.now().toUtc().difference(lastHb);
+        recentHeartbeat = diff.inMinutes < 60;
+      } catch (_) {}
     }
 
     IconData nodeIcon;
@@ -144,36 +162,89 @@ class _NodeWidgetState extends State<NodeWidget>
             AnimatedBuilder(
               animation: _pulseAnimation,
               builder: (context, child) {
-                final glowAlpha = widget.node.status == NodeStatus.delayed
-                    ? _pulseAnimation.value * 0.6
-                    : (widget.node.status == NodeStatus.active ? 0.2 : 0.1);
+                final glowAlpha = isDark
+                    ? _pulseAnimation.value * 0.4
+                    : widget.node.status == NodeStatus.delayed
+                        ? _pulseAnimation.value * 0.6
+                        : (widget.node.status == NodeStatus.active ? 0.2 : 0.1);
 
-                return Container(
-                  width: 56,
-                  height: 56,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF22222A),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: statusColor, width: 1.5),
-                    boxShadow: [
-                      BoxShadow(
-                        color: statusColor.withValues(alpha: glowAlpha),
-                        blurRadius: widget.node.status == NodeStatus.delayed
-                            ? 15 + (_pulseAnimation.value * 10)
-                            : 15,
-                        spreadRadius: widget.node.status == NodeStatus.delayed
-                            ? 2 + (_pulseAnimation.value * 4)
-                            : 2,
+                return Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    Container(
+                      width: 56,
+                      height: 56,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF22222A),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: statusColor, width: 1.5),
+                        boxShadow: [
+                          BoxShadow(
+                            color: statusColor.withValues(alpha: glowAlpha),
+                            blurRadius: (widget.node.status == NodeStatus.delayed || isDark)
+                                ? 15 + (_pulseAnimation.value * 10)
+                                : 15,
+                            spreadRadius: (widget.node.status == NodeStatus.delayed || isDark)
+                                ? 2 + (_pulseAnimation.value * 4)
+                                : 2,
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
-                  child: Center(
-                    child: Icon(
-                      nodeIcon,
-                      color: statusColor,
-                      size: 26,
+                      child: Center(
+                        child: Icon(
+                          nodeIcon,
+                          color: statusColor,
+                          size: 26,
+                        ),
+                      ),
                     ),
-                  ),
+                    // Heartbeat dot — pulsing green for recently active nodes
+                    if (recentHeartbeat)
+                      Positioned(
+                        top: -2,
+                        right: -2,
+                        child: Container(
+                          width: 10,
+                          height: 10,
+                          decoration: BoxDecoration(
+                            color: Colors.tealAccent,
+                            shape: BoxShape.circle,
+                            border: Border.all(color: const Color(0xFF22222A), width: 1.5),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.tealAccent.withValues(alpha: 0.5),
+                                blurRadius: 4,
+                                spreadRadius: 1,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    // Dark node "?" badge
+                    if (isDark)
+                      Positioned(
+                        bottom: -2,
+                        right: -2,
+                        child: Container(
+                          width: 16,
+                          height: 16,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF6B5B7B),
+                            shape: BoxShape.circle,
+                            border: Border.all(color: const Color(0xFF22222A), width: 1.5),
+                          ),
+                          child: const Center(
+                            child: Text('?',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 9,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
                 );
               },
             ),
