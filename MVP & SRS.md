@@ -17,7 +17,7 @@ The platform is built upon 7 core interconnected components. This section define
 
 **How it Works:** The layer operates across three distinct tracks managed by a Smart Router:
 
-* **The Cold Start (Unstructured):** Using multimodal AI (Gemini 2.5), it runs NLP and OCR on unstructured data dumps (PDFs, emails, CSVs) to extract entities, relationships, and geographic coordinates.
+* **The Cold Start (Unstructured):** Using multimodal AI (Gemini 1.5 Flash), it runs NLP and OCR on unstructured data dumps (PDFs, emails, CSVs) to extract entities, relationships, and geographic coordinates.
 * **The Continuous Sync (Zero-Trust Pull):** * *Objective:* Safely extract operational data from fragile, on-premise legacy databases (e.g., old ERPs, Oracle, SAP) without exposing the platform to network vulnerabilities or crashing the client's servers.
     * *Architecture:* * **AI-Generated MCP Container:** The platform dynamically generates a localized Docker container containing a customized Python Model Context Protocol (MCP) script.
         * **SQLite Shock Absorber:** To prevent read-heavy polling from crashing the legacy database, the MCP script performs low-frequency reads and writes the data to a lightweight, localized SQLite database inside the container.
@@ -126,7 +126,7 @@ The architecture is specifically engineered for real-time performance, cost-effi
     * **Core Framework:** Supabase (PostgreSQL + WebSockets) & SQLite.
     * **Component Logic Integration:** Supabase manages the master schema and real-time updates. It acts as the system's "Nervous System," utilizing Webhooks for "One Stone, Multiple Birds" execution; when a JSON payload from the supplier's PWA updates the `node_data` table, the webhook instantly fans out to update visual canvas states and recalculate the 1-Hop graph logic. PostgreSQL architecture enforces the strict "1-Hop" boundary for commercial privacy. SQLite acts as a local cache for Google Maps API queries and a "Shock Absorber" inside client MCP containers.
 * **Layer 4: Intelligence, Edge Connectivity & External Integrations**
-    * **Core AI Agent:** Google Vertex AI / Gemini 2.5.
+    * **Core AI Agent:** Google Vertex AI / Gemini 1.5 Flash (Free Tier).
     * **Component Logic Integration:** This multimodal AI runs NLP and OCR on unstructured data dumps for cold-start onboarding. It also powers the lightweight local parsing function that evaluates natural language responses from the conversational Magic Link interface, translating text (e.g., *"delayed by 2 days"*) into strict schema updates prior to database commitment.
 
 ## 4. Engineering Workflow: How it Works in Practice

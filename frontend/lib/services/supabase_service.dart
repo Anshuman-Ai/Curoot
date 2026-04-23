@@ -69,4 +69,21 @@ class SupabaseService {
     ).subscribe();
     return channel;
   }
+
+  // Set up a Realtime subscription to the edges table for the org
+  RealtimeChannel streamEdges(String organizationId, void Function(PostgresChangePayload payload) onData) {
+    final channel = client.channel('public:node_edges:org_$organizationId');
+    channel.onPostgresChanges(
+      event: PostgresChangeEvent.all,
+      schema: 'public',
+      table: 'node_edges',
+      filter: PostgresChangeFilter(
+        type: PostgresChangeFilterType.eq,
+        column: 'organization_id',
+        value: organizationId,
+      ),
+      callback: onData,
+    ).subscribe();
+    return channel;
+  }
 }

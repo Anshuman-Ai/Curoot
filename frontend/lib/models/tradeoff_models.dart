@@ -83,4 +83,21 @@ class TradeoffAnalysisResponse {
       recommendationConfidence: (json['recommendation_confidence'] as num).toDouble(),
     );
   }
+
+  /// Returns a placeholder response for nodes not yet synced to Supabase.
+  factory TradeoffAnalysisResponse.placeholder({
+    required String currentNodeId,
+    required String alternativeNodeId,
+  }) {
+    return TradeoffAnalysisResponse(
+      analysisId: '00000000-0000-0000-0000-000000000000',
+      orgId: '00000000-0000-0000-0000-000000000000',
+      currentNodeId: currentNodeId,
+      alternativeNodeId: alternativeNodeId,
+      disruptionAlertId: '00000000-0000-0000-0000-000000000000',
+      metrics: [],
+      overallRecommendation: 'investigate',
+      recommendationConfidence: 0.0,
+    );
+  }
 }

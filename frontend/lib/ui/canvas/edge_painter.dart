@@ -16,6 +16,7 @@ class EdgePainter extends CustomPainter {
       if (source != null && target != null) {
         // Find color based on target node status
         Color lineColor;
+        double strokeW = 2.0;
         switch (target.status) {
           case NodeStatus.active:
             lineColor = Colors.teal;
@@ -25,12 +26,16 @@ class EdgePainter extends CustomPainter {
             break;
           case NodeStatus.delayed:
             lineColor = Colors.redAccent;
+            strokeW = 2.5; // Emphasise disrupted edges
+            break;
+          case NodeStatus.offline:
+            lineColor = Colors.white24; // Very faint for Dark Nodes
             break;
         }
 
         final paint = Paint()
           ..color = lineColor
-          ..strokeWidth = 2.0
+          ..strokeWidth = strokeW
           ..style = PaintingStyle.stroke;
 
         final dx = target.position.dx - source.position.dx;

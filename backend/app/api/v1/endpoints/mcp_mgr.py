@@ -1,97 +1,358 @@
-from fastapi import APIRouter
-from app.models.ai_parser import MCPSpecRequest
-from typing import Dict, Any
+"""
+MCP Manager Endpoint — SRS §2.1 Track 2 (Continuous Sync)
 
-router = APIRouter()
-
-@router.post("/generate", response_model=Dict[str, Any])
-async def generate_mcp_container(spec: MCPSpecRequest):
-    """
-    Continuous Sync / MCP Generator
-    
-    Instead of allowing inbound connections to legacy databases (which violates Zero-Trust),
-    this endpoint generates configuration for a localized Model Context Protocol (MCP) Docker container.
-    
-    The user deploys this generated container on-premise, which tracks the database
-    locally and pushes structured updates outward to our ingestion endpoints acting as a 
-    'Shock Absorber' using lightweight SQLite buffering.
-    """
-    
-    # Generate the compose file. The template uses a generic base image and sets ENV vars.
-    docker_compose_yml = f"""version: '3.8'
-services:
-  mcp_shock_absorber:
-    image: curoot/mcp-connector:latest
-    environment:
-      - TARGET_DB_TYPE={spec.db_type}
-      - TARGET_DB_IP={spec.ip_address}
-      - TARGET_TABLE={spec.table_name}
-      - SYNC_FREQ={spec.sync_frequency_seconds}
-      - INGESTION_WEBHOOK=${{INGESTION_WEBHOOK:-http://localhost:8000/api/v1/ingestion/telemetry}}
-    volumes:
-      - mcp_local_buffer:/app/buffer
-volumes:
-  mcp_local_buffer:
+Generates a localized Docker container with a customised MCP script
+for secure Zero-Trust synchronisation from legacy ERPs to the platform.
 """
 
-    # Generate the local python runner script conceptually running in the container.
-    mcp_script = """import os
+from __future__ import annotations
+
+import logging
+import uuid
+from typing import Any, Dict
+
+from fastapi import APIRouter
+
+from app.db.supabase import get_supabase_client
+from app.models.ai_parser import MCPSpecRequest
+from app.services import ai_service
+
+router = APIRouter()
+logger = logging.getLogger(__name__)
+
+# ---------------------------------------------------------------------------
+# DB connection string templates per database type
+# ---------------------------------------------------------------------------
+_DB_CONNECTORS: Dict[str, Dict[str, str]] = {
+    "postgres": {
+        "driver": "psycopg2",
+        "pip": "psycopg2-binary",
+        "conn_str": "postgresql://{user}:{password}@{host}:{port}/{db}",
+        "default_port": "5432",
+        "import": "import psycopg2",
+        "connect": 'psycopg2.connect(host=DB_HOST, port=DB_PORT, user=DB_USER, password=DB_PASS, dbname=DB_NAME)',
+        "query": 'cursor.execute(f"SELECT * FROM {TABLE_NAME} WHERE updated_at > %s", (last_sync,))',
+    },
+    "postgresql": {  # alias
+        "driver": "psycopg2",
+        "pip": "psycopg2-binary",
+        "conn_str": "postgresql://{user}:{password}@{host}:{port}/{db}",
+        "default_port": "5432",
+        "import": "import psycopg2",
+        "connect": 'psycopg2.connect(host=DB_HOST, port=DB_PORT, user=DB_USER, password=DB_PASS, dbname=DB_NAME)',
+        "query": 'cursor.execute(f"SELECT * FROM {TABLE_NAME} WHERE updated_at > %s", (last_sync,))',
+    },
+    "mysql": {
+        "driver": "pymysql",
+        "pip": "pymysql",
+        "conn_str": "mysql://{user}:{password}@{host}:{port}/{db}",
+        "default_port": "3306",
+        "import": "import pymysql",
+        "connect": 'pymysql.connect(host=DB_HOST, port=int(DB_PORT), user=DB_USER, password=DB_PASS, database=DB_NAME)',
+        "query": 'cursor.execute(f"SELECT * FROM {TABLE_NAME} WHERE updated_at > %s", (last_sync,))',
+    },
+    "oracle": {
+        "driver": "cx_Oracle",
+        "pip": "cx_Oracle",
+        "conn_str": "{user}/{password}@{host}:{port}/{db}",
+        "default_port": "1521",
+        "import": "import cx_Oracle",
+        "connect": 'cx_Oracle.connect(user=DB_USER, password=DB_PASS, dsn=f"{DB_HOST}:{DB_PORT}/{DB_NAME}")',
+        "query": 'cursor.execute(f"SELECT * FROM {TABLE_NAME} WHERE updated_at > :1", (last_sync,))',
+    },
+    "sqlserver": {
+        "driver": "pyodbc",
+        "pip": "pyodbc",
+        "conn_str": "mssql://{user}:{password}@{host}:{port}/{db}",
+        "default_port": "1433",
+        "import": "import pyodbc",
+        "connect": (
+            'pyodbc.connect('
+            'f"DRIVER={{ODBC Driver 17 for SQL Server}};SERVER={DB_HOST},{DB_PORT};DATABASE={DB_NAME};UID={DB_USER};PWD={DB_PASS}"'
+            ')'
+        ),
+        "query": 'cursor.execute(f"SELECT * FROM {TABLE_NAME} WHERE updated_at > ?", (last_sync,))',
+    },
+}
+
+
+def _get_db_config(db_type: str) -> Dict[str, str]:
+    """Look up the DB connector config, defaulting to postgres."""
+    key = db_type.lower().replace(" ", "")
+    return _DB_CONNECTORS.get(key, _DB_CONNECTORS["postgres"])
+
+
+def _generate_mcp_script(spec: MCPSpecRequest) -> str:
+    """Generate a fully working MCP Python script tailored to the target DB."""
+    cfg = _get_db_config(spec.db_type)
+
+    return f'''#!/usr/bin/env python3
+"""
+MCP Connector — Auto-Generated by Curoot Platform
+Target: {spec.db_type} @ {spec.ip_address} / {spec.table_name}
+Architecture: Legacy DB → SQLite Shock Absorber → HTTPS Push → Curoot Cloud
+"""
+
+import os
 import time
+import json
 import sqlite3
+import logging
 import requests
+from datetime import datetime, timezone
 
-# Shock Absorber pattern: Read from legacy DB -> Write to Local SQLite -> Push to Cloud
-LOCAL_DB_PATH = '/app/buffer/local_sync.db'
-INGESTION_URL = os.getenv('INGESTION_WEBHOOK')
+{cfg["import"]}
 
+logging.basicConfig(level=logging.INFO, format="%(asctime)s [MCP] %(message)s")
+logger = logging.getLogger("mcp_connector")
+
+# ---------- Configuration (from Docker ENV) ----------
+DB_HOST     = os.getenv("TARGET_DB_IP", "{spec.ip_address}")
+DB_PORT     = os.getenv("TARGET_DB_PORT", "{cfg['default_port']}")
+DB_USER     = os.getenv("TARGET_DB_USER", "readonly_user")
+DB_PASS     = os.getenv("TARGET_DB_PASS", "")
+DB_NAME     = os.getenv("TARGET_DB_NAME", "erp")
+TABLE_NAME  = os.getenv("TARGET_TABLE", "{spec.table_name}")
+SYNC_FREQ   = int(os.getenv("SYNC_FREQ", "{spec.sync_frequency_seconds}"))
+WEBHOOK_URL = os.getenv("INGESTION_WEBHOOK", "http://localhost:8000/api/v1/ingestion/telemetry")
+BUFFER_PATH = os.getenv("BUFFER_PATH", "/app/buffer/sync_buffer.db")
+
+# ---------- SQLite Shock Absorber ----------
 def init_buffer():
-    conn = sqlite3.connect(LOCAL_DB_PATH)
-    conn.execute('''CREATE TABLE IF NOT EXISTS sync_queue 
-                    (id INTEGER PRIMARY KEY, payload TEXT, status TEXT)''')
+    """Initialize the local SQLite buffer database."""
+    conn = sqlite3.connect(BUFFER_PATH)
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS sync_queue (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            payload TEXT NOT NULL,
+            status TEXT DEFAULT 'pending',
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    conn.commit()
+    conn.close()
+    logger.info("SQLite buffer initialized at %s", BUFFER_PATH)
+
+# ---------- Pull from Legacy DB → Buffer ----------
+def pull_and_buffer():
+    """Low-frequency read from legacy DB, write to local SQLite buffer."""
+    try:
+        conn = {cfg["connect"]}
+        cursor = conn.cursor()
+
+        # Read recent records (last sync window)
+        last_sync = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+        {cfg["query"]}
+        rows = cursor.fetchall()
+        columns = [desc[0] for desc in cursor.description] if cursor.description else []
+
+        if not rows:
+            logger.info("No new records from legacy DB.")
+            conn.close()
+            return
+
+        # Write to SQLite buffer
+        buffer_conn = sqlite3.connect(BUFFER_PATH)
+        for row in rows:
+            record = dict(zip(columns, row))
+            # Map to UniversalFilter schema
+            payload = {{
+                "node_id": str(record.get("id", record.get("node_id", "UNKNOWN"))),
+                "status": str(record.get("status", "operational")),
+            }}
+            # Add location if available
+            lat = record.get("lat") or record.get("latitude")
+            lng = record.get("lng") or record.get("longitude")
+            if lat and lng:
+                payload["location"] = {{"lat": float(lat), "lng": float(lng)}}
+
+            buffer_conn.execute(
+                "INSERT INTO sync_queue (payload, status) VALUES (?, ?)",
+                (json.dumps(payload), "pending"),
+            )
+
+        buffer_conn.commit()
+        buffer_conn.close()
+        conn.close()
+        logger.info("Buffered %d records from legacy DB.", len(rows))
+
+    except Exception as e:
+        logger.error("Pull error: %s", e)
+
+# ---------- Flush Buffer → Cloud (Append-Only HTTPS Push) ----------
+def flush_buffer():
+    """Push pending payloads from SQLite buffer to Curoot ingestion webhook."""
+    conn = sqlite3.connect(BUFFER_PATH)
+    pending = conn.execute(
+        "SELECT id, payload FROM sync_queue WHERE status = 'pending'"
+    ).fetchall()
+
+    if not pending:
+        logger.info("Buffer empty — nothing to flush.")
+        conn.close()
+        return
+
+    logger.info("Flushing %d payloads to %s", len(pending), WEBHOOK_URL)
+    for item_id, payload_str in pending:
+        try:
+            payload = json.loads(payload_str)
+            resp = requests.post(
+                WEBHOOK_URL,
+                json=payload,
+                headers={{"Content-Type": "application/json"}},
+                timeout=30,
+            )
+            if resp.status_code == 200:
+                conn.execute(
+                    "UPDATE sync_queue SET status = 'synced' WHERE id = ?",
+                    (item_id,),
+                )
+                logger.info("Synced payload %d → %s", item_id, resp.json().get("message", "OK"))
+            else:
+                logger.error("Sync failed for %d: %s", item_id, resp.text)
+        except requests.exceptions.RequestException as e:
+            logger.error("Network error for payload %d: %s", item_id, e)
+
     conn.commit()
     conn.close()
 
-def pull_and_buffer():
-    # 1. Connect to Legacy DB safely on local network
-    # target_db = get_db_connection(...)
-    # rows = target_db.query(...)
-    
-    # 2. Write to local SQLite Shock Absorber
-    # conn = sqlite3.connect(LOCAL_DB_PATH)
-    # for row in rows:
-    #     conn.execute('INSERT INTO sync_queue (payload, status) VALUES (?, ?)', (row, 'pending'))
-    # conn.commit()
-    pass
-
-def flush_buffer():
-    # 3. Read from SQLite and push via HTTPS out to the Zero-Trust ingestion layer
-    # conn = sqlite3.connect(LOCAL_DB_PATH)
-    # pending = conn.execute('SELECT id, payload FROM sync_queue WHERE status="pending"').fetchall()
-    # for item_id, payload in pending:
-    #     resp = requests.post(INGESTION_URL, json=payload)
-    #     if resp.status_code == 200:
-    #         conn.execute('UPDATE sync_queue SET status="synced" WHERE id=?', (item_id,))
-    #         conn.commit()
-    # conn.close()
-    pass
-
+# ---------- Main Loop ----------
 if __name__ == "__main__":
+    logger.info("Starting MCP Connector for {spec.db_type} @ {spec.ip_address}")
+    logger.info("Tracking table: {spec.table_name} | Sync freq: %ds", SYNC_FREQ)
     init_buffer()
     while True:
         try:
             pull_and_buffer()
             flush_buffer()
         except Exception as e:
-            print(f"MCP Sync Error: {e}")
-        time.sleep(int(os.getenv('SYNC_FREQ', 60)))
+            logger.error("MCP sync cycle error: %s", e)
+        time.sleep(SYNC_FREQ)
+'''
+
+
+def _generate_docker_compose(spec: MCPSpecRequest) -> str:
+    """Generate a Docker Compose file for the MCP container."""
+    cfg = _get_db_config(spec.db_type)
+    return f"""version: '3.8'
+services:
+  mcp_shock_absorber:
+    image: curoot/mcp-connector:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      - TARGET_DB_TYPE={spec.db_type}
+      - TARGET_DB_IP={spec.ip_address}
+      - TARGET_DB_PORT={cfg['default_port']}
+      - TARGET_DB_USER=${{DB_USER:-readonly_user}}
+      - TARGET_DB_PASS=${{DB_PASS:-}}
+      - TARGET_DB_NAME=${{DB_NAME:-erp}}
+      - TARGET_TABLE={spec.table_name}
+      - SYNC_FREQ={spec.sync_frequency_seconds}
+      - INGESTION_WEBHOOK=${{INGESTION_WEBHOOK:-http://host.docker.internal:8000/api/v1/ingestion/telemetry}}
+      - BUFFER_PATH=/app/buffer/sync_buffer.db
+    volumes:
+      - mcp_local_buffer:/app/buffer
+    restart: unless-stopped
+    # Kill-switch: stop this container at any time to cut off data flow
+    # docker-compose down
+volumes:
+  mcp_local_buffer:
 """
+
+
+def _generate_dockerfile() -> str:
+    """Generate a Dockerfile for the MCP container."""
+    return """FROM python:3.11-slim
+
+WORKDIR /app
+
+# Install system deps for database drivers
+RUN apt-get update && apt-get install -y --no-install-recommends \\
+    gcc libpq-dev unixodbc-dev && \\
+    rm -rf /var/lib/apt/lists/*
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY src/ ./src/
+
+RUN mkdir -p /app/buffer
+
+CMD ["python", "src/main.py"]
+"""
+
+
+@router.post("/generate", response_model=Dict[str, Any])
+async def generate_mcp_container(spec: MCPSpecRequest):
+    """
+    Continuous Sync / MCP Generator — SRS §2.1 Track 2.
+
+    Generates a complete, deployable MCP Docker container configuration
+    customised to the client's database type. The container:
+
+    1. Connects to the legacy DB on the local network
+    2. Buffers data in a local SQLite "Shock Absorber"
+    3. Pushes append-only updates outward via HTTPS
+
+    The user retains kill-switch control (docker-compose down).
+    """
+    org_id = "00000000-0000-0000-0000-000000000000"
+
+    # Create ingestion job + MCP container records
+    job_id = str(uuid.uuid4())
+    container_id = str(uuid.uuid4())
+    try:
+        supabase = get_supabase_client()
+        supabase.table("ingestion_jobs").insert(
+            {
+                "id": job_id,
+                "organization_id": org_id,
+                "source_type": "mcp_continuous_sync",
+                "source_ref": f"{spec.db_type}://{spec.ip_address}/{spec.table_name}",
+                "status": "active",
+            }
+        ).execute()
+        supabase.table("mcp_containers").insert(
+            {
+                "id": container_id,
+                "organization_id": org_id,
+                "ingestion_job_id": job_id,
+                "db_type": spec.db_type,
+                "target_host": spec.ip_address,
+                "target_table": spec.table_name,
+                "sync_frequency": spec.sync_frequency_seconds,
+                "status": "generated",
+            }
+        ).execute()
+    except Exception as exc:
+        logger.warning("Could not persist MCP records to Supabase: %s", exc)
+
+    # Generate AI natural-language prompt
+    ai_prompt = await ai_service.generate_mcp_prompt(
+        spec.db_type, spec.ip_address, spec.table_name
+    )
+
+    # Generate artefacts
+    docker_compose = _generate_docker_compose(spec)
+    mcp_script = _generate_mcp_script(spec)
+    dockerfile = _generate_dockerfile()
 
     return {
         "status": "success",
-        "message": "MCP Container specifications generated successfully.",
+        "message": ai_prompt,
         "configuration": {
-            "docker-compose.yml": docker_compose_yml,
+            "docker-compose.yml": docker_compose,
+            "Dockerfile": dockerfile,
             "mcp_runner.py": mcp_script,
-            "instructions": "Place these files in a directory on the legacy DB network and run 'docker-compose up -d'."
-        }
+            "instructions": (
+                "Place these files in a directory on the legacy DB network and run:\n"
+                "  docker-compose up -d\n\n"
+                "To stop the sync at any time (kill-switch):\n"
+                "  docker-compose down"
+            ),
+        },
+        "ingestion_job_id": job_id,
+        "container_id": container_id,
     }

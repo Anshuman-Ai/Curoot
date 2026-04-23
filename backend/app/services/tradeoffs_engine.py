@@ -75,7 +75,7 @@ class InsightsEngine:
             .select("*")
             .eq("id", str(disrupted_node_id))
             .eq("organization_id", str(org_id))
-            .single()
+            .maybe_single()
             .execute()
         )
         disrupted_node = node_resp.data
@@ -597,7 +597,7 @@ async def _fetch_node(supabase: Any, node_id: UUID, org_id: UUID) -> Dict[str, A
         .select("*")
         .eq("id", str(node_id))
         .eq("organization_id", str(org_id))
-        .single()
+        .maybe_single()
         .execute()
     )
     if not resp.data:

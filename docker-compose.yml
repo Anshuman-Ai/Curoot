@@ -1,0 +1,47 @@
+version: '3.8'
+
+services:
+  # ---- FastAPI Backend ----
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - ./backend:/app
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    restart: unless-stopped
+
+  # ---- MCP Template (for local testing) ----
+  mcp_connector:
+    build:
+      context: ./mcp-template
+      dockerfile: Dockerfile
+    environment:
+      - TARGET_DB_TYPE=${MCP_DB_TYPE:-postgres}
+      - TARGET_DB_IP=${MCP_DB_IP:-host.docker.internal}
+      - TARGET_DB_PORT=${MCP_DB_PORT:-5432}
+      - TARGET_DB_USER=${MCP_DB_USER:-readonly_user}
+      - TARGET_DB_PASS=${MCP_DB_PASS:-}
+      - TARGET_DB_NAME=${MCP_DB_NAME:-erp}
+      - TARGET_TABLE=${MCP_TABLE:-inventory}
+      - SYNC_FREQ=${MCP_SYNC_FREQ:-60}
+      - INGESTION_WEBHOOK=http://backend:8000/api/v1/ingestion/telemetry
+      - BUFFER_PATH=/app/buffer/sync_buffer.db
+    volumes:
+      - mcp_buffer:/app/buffer
+    depends_on:
+      - backend
+    restart: unless-stopped
+    # Disabled by default — enable when testing MCP flow:
+    #   docker-compose up mcp_connector
+    profiles:
+      - mcp
+
+volumes:
+  mcp_buffer:

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../state/canvas_provider.dart';
 
-class NodeWidget extends StatelessWidget {
+class NodeWidget extends StatefulWidget {
   final CanvasNode node;
   final VoidCallback? onTap;
   final GestureDragUpdateCallback? onPanUpdate;
@@ -14,25 +14,77 @@ class NodeWidget extends StatelessWidget {
   });
 
   @override
+  State<NodeWidget> createState() => _NodeWidgetState();
+}
+
+class _NodeWidgetState extends State<NodeWidget>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _pulseController;
+  late Animation<double> _pulseAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _pulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1400),
+    );
+    _pulseAnimation = Tween<double>(begin: 0.3, end: 1.0).animate(
+      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
+    );
+    _updatePulse();
+  }
+
+  @override
+  void didUpdateWidget(covariant NodeWidget oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.node.status != widget.node.status) {
+      _updatePulse();
+    }
+  }
+
+  void _updatePulse() {
+    if (widget.node.status == NodeStatus.delayed) {
+      _pulseController.repeat(reverse: true);
+    } else {
+      _pulseController.stop();
+      _pulseController.value = 1.0;
+    }
+  }
+
+  @override
+  void dispose() {
+    _pulseController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     Color statusColor;
     double nodeOpacity = 1.0;
-    
-    switch (node.status) {
+    IconData? statusIndicator;
+
+    switch (widget.node.status) {
       case NodeStatus.active:
         statusColor = Colors.tealAccent;
         break;
       case NodeStatus.pending:
-        statusColor = Colors.white54;
-        nodeOpacity = 0.5; // Faded if unverified/pending
+        statusColor = Colors.amber;
+        nodeOpacity = 0.5; // Faded if unverified/pending (SRS §2.3)
+        statusIndicator = Icons.hourglass_empty;
         break;
       case NodeStatus.delayed:
         statusColor = Colors.redAccent;
         break;
+      case NodeStatus.offline:
+        statusColor = const Color(0xFF555555);
+        nodeOpacity = 0.30; // Dark Node — very faded (SRS §2.7.3)
+        statusIndicator = Icons.signal_wifi_off;
+        break;
     }
 
     IconData nodeIcon;
-    switch (node.type) {
+    switch (widget.node.type) {
       case NodeType.oem:
         nodeIcon = Icons.factory;
         break;
@@ -48,8 +100,8 @@ class NodeWidget extends StatelessWidget {
     }
 
     return GestureDetector(
-      onTap: onTap,
-      onPanUpdate: onPanUpdate,
+      onTap: widget.onTap,
+      onPanUpdate: widget.onPanUpdate,
       child: Opacity(
         opacity: nodeOpacity,
         child: Column(
@@ -65,13 +117,19 @@ class NodeWidget extends StatelessWidget {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  if (node.status == NodeStatus.pending)
-                    const Padding(
-                      padding: EdgeInsets.only(right: 6.0),
-                      child: Icon(Icons.hourglass_empty, color: Colors.amber, size: 12),
+                  if (statusIndicator != null)
+                    Padding(
+                      padding: const EdgeInsets.only(right: 6.0),
+                      child: Icon(
+                        statusIndicator,
+                        color: widget.node.status == NodeStatus.offline
+                            ? Colors.grey
+                            : Colors.amber,
+                        size: 12,
+                      ),
                     ),
                   Text(
-                    node.label,
+                    widget.node.label,
                     style: const TextStyle(
                       color: Colors.white70,
                       fontSize: 12,
@@ -82,29 +140,42 @@ class NodeWidget extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 8),
-            // Node Box
-            Container(
-              width: 56,
-              height: 56,
-              decoration: BoxDecoration(
-                color: const Color(0xFF22222A),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: statusColor, width: 1.5),
-                boxShadow: [
-                  BoxShadow(
-                    color: statusColor.withValues(alpha: 0.2),
-                    blurRadius: 15,
-                    spreadRadius: 2,
+            // Node Box with optional pulse animation
+            AnimatedBuilder(
+              animation: _pulseAnimation,
+              builder: (context, child) {
+                final glowAlpha = widget.node.status == NodeStatus.delayed
+                    ? _pulseAnimation.value * 0.6
+                    : (widget.node.status == NodeStatus.active ? 0.2 : 0.1);
+
+                return Container(
+                  width: 56,
+                  height: 56,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF22222A),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: statusColor, width: 1.5),
+                    boxShadow: [
+                      BoxShadow(
+                        color: statusColor.withValues(alpha: glowAlpha),
+                        blurRadius: widget.node.status == NodeStatus.delayed
+                            ? 15 + (_pulseAnimation.value * 10)
+                            : 15,
+                        spreadRadius: widget.node.status == NodeStatus.delayed
+                            ? 2 + (_pulseAnimation.value * 4)
+                            : 2,
+                      ),
+                    ],
                   ),
-                ],
-              ),
-              child: Center(
-                child: Icon(
-                  nodeIcon,
-                  color: statusColor,
-                  size: 26,
-                ),
-              ),
+                  child: Center(
+                    child: Icon(
+                      nodeIcon,
+                      color: statusColor,
+                      size: 26,
+                    ),
+                  ),
+                );
+              },
             ),
           ],
         ),
@@ -112,4 +183,3 @@ class NodeWidget extends StatelessWidget {
     );
   }
 }
-

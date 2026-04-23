@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:desktop_drop/desktop_drop.dart';
 import '../../services/api_client.dart';
+import '../../state/canvas_provider.dart';
 import 'mcp_generation_wizard.dart';
 
 class OmniIngestionPanel extends ConsumerStatefulWidget {
@@ -72,9 +73,42 @@ class _OmniIngestionPanelState extends ConsumerState<OmniIngestionPanel> {
           setState(() {
             _isUploading = false;
           });
-          if (extractionResult != null) _showExtractionResult(name, extractionResult);
+          if (extractionResult != null) {
+            // ── Bridge 1: Push extracted nodes/edges to canvas immediately ──
+            _pushToCanvas(extractionResult);
+            _showExtractionResult(name, extractionResult);
+          }
         }
       });
+    }
+  }
+
+  /// Bridge 1+3: Inject extracted entities into the canvas state and show
+  /// a confirmation SnackBar so the user knows nodes were mapped.
+  void _pushToCanvas(Map<String, dynamic> result) {
+    final nodes = (result['nodes'] as List<dynamic>?)
+        ?.map((n) => Map<String, dynamic>.from(n as Map))
+        .toList() ?? [];
+    final edges = (result['edges'] as List<dynamic>?)
+        ?.map((e) => Map<String, dynamic>.from(e as Map))
+        .toList() ?? [];
+
+    if (nodes.isNotEmpty || edges.isNotEmpty) {
+      ref.read(canvasProvider.notifier).addNodesFromIngestion(nodes, edges);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              '${nodes.length} node${nodes.length == 1 ? '' : 's'} and '
+              '${edges.length} edge${edges.length == 1 ? '' : 's'} mapped to canvas. Realtime sync active.',
+            ),
+            backgroundColor: const Color(0xFF2DD4BF).withValues(alpha: 0.9),
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
     }
   }
 

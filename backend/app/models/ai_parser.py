@@ -12,8 +12,22 @@ class SupplyChainNode(BaseModel):
     location: Coordinate = Field(..., description="Geographical location of the node")
     status: str = Field("operational", description="Current operational status")
 
+class SupplyChainEdge(BaseModel):
+    """Represents a directed relationship between two supply chain nodes."""
+    source_node_id: str = Field(..., description="ID of the source node")
+    target_node_id: str = Field(..., description="ID of the target node")
+    relationship_type: str = Field(
+        "supplies_to",
+        description="Type of relationship (e.g., supplies_to, ships_via, stores_at)"
+    )
+    label: Optional[str] = Field(None, description="Human-readable label for the edge")
+
 class AIExtractionResult(BaseModel):
     nodes: List[SupplyChainNode] = Field(..., description="Extracted supply chain nodes")
+    edges: List[SupplyChainEdge] = Field(
+        default_factory=list,
+        description="Extracted relationships between supply chain nodes"
+    )
     confidence: float = Field(..., description="Confidence score of the extraction")
 
 class UniversalFilter(BaseModel):

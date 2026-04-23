@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/services.dart';
 import '../../services/api_client.dart';
+import '../../state/canvas_provider.dart';
+import '../panels/left_panel.dart';
 
 class ActiveMcpPipelineNotifier extends Notifier<String?> {
   @override
@@ -207,8 +209,10 @@ class _McpGenerationWizardState extends ConsumerState<McpGenerationWizard> {
       case 2:
         return _buildStep3Verification();
       case 3:
-      default:
         return _buildStep4Download();
+      case 4:
+      default:
+        return _buildStep5MapToCanvas();
     }
   }
 
@@ -385,14 +389,131 @@ class _McpGenerationWizardState extends ConsumerState<McpGenerationWizard> {
             ),
             const SizedBox(width: 12),
             _buildGlassButton(
-              'Acknowledge & Close',
-              () => Navigator.of(context).pop(),
+              'Map to Canvas',
+              () => setState(() => _currentStep = 4),
               isPrimary: true,
-              icon: Icons.check,
+              icon: Icons.map_outlined,
             ),
           ],
         ),
       ],
+    );
+  }
+
+  Widget _buildStep5MapToCanvas() {
+    // Use AI-generated message from backend, or a sensible SRS-compliant default
+    final aiMessage = _generatedPayload?['ai_message'] as String? ??
+        'I have generated the secure MCP connector for your '
+        '${_dbTypeController.text} ERP. Should I begin mapping live '
+        'telemetry to the Main Canvas?';
+
+    return Column(
+      key: const ValueKey('step5'),
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Container(
+          padding: const EdgeInsets.all(28),
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: const Color(0xFF2DD4BF).withValues(alpha: 0.12),
+            border: Border.all(
+              color: const Color(0xFF2DD4BF).withValues(alpha: 0.4),
+              width: 2,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF2DD4BF).withValues(alpha: 0.25),
+                blurRadius: 30,
+              ),
+            ],
+          ),
+          child: const Icon(
+            Icons.auto_awesome,
+            size: 64,
+            color: Color(0xFF2DD4BF),
+          ),
+        ),
+        const SizedBox(height: 32),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+          margin: const EdgeInsets.symmetric(horizontal: 16),
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.03),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: const Color(0xFF2DD4BF).withValues(alpha: 0.2),
+            ),
+          ),
+          child: Text(
+            aiMessage,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.85),
+              fontSize: 16,
+              fontWeight: FontWeight.w500,
+              height: 1.6,
+              fontStyle: FontStyle.italic,
+            ),
+          ),
+        ),
+        const SizedBox(height: 40),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            _buildGlassButton(
+              'Later',
+              () => Navigator.of(context).pop(),
+              icon: Icons.schedule,
+            ),
+            const SizedBox(width: 16),
+            _buildGlassButton(
+              'Begin Mapping',
+              _beginMapping,
+              isPrimary: true,
+              icon: Icons.play_arrow_rounded,
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  void _beginMapping() {
+    // Create a pending node on the canvas representing the ERP source
+    final erpNode = CanvasNode(
+      id: 'mcp_${_dbTypeController.text.toLowerCase().replaceAll(' ', '_')}_${DateTime.now().millisecondsSinceEpoch}',
+      label: '${_dbTypeController.text} ERP',
+      type: NodeType.factory,
+      status: NodeStatus.pending,
+      position: const Offset(5000 - 200, 5000), // Left of 'You' node
+    );
+
+    ref.read(canvasProvider.notifier).addNode(erpNode);
+
+    // Create edge from ERP source → You
+    ref.read(canvasProvider.notifier).addEdge(
+      CanvasEdge(
+        id: 'e_mcp_${DateTime.now().millisecondsSinceEpoch}',
+        sourceId: erpNode.id,
+        targetId: 'you',
+      ),
+    );
+
+    // Collapse left panel to reveal the canvas
+    ref.read(leftPanelTabProvider.notifier).setTab(LeftPanelTab.none);
+
+    Navigator.of(context).pop();
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          '${_dbTypeController.text} ERP node mapped to canvas. '
+          'Awaiting first telemetry sync…',
+        ),
+        backgroundColor: const Color(0xFF2DD4BF).withValues(alpha: 0.9),
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 5),
+      ),
     );
   }
 

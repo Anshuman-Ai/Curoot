@@ -14,10 +14,25 @@ final tradeoffProvider = FutureProvider.family<TradeoffAnalysisResponse, Map<Str
     final currentNodeId  = params['current_node_id']!;
     final alternativeNodeId = params['alternative_node_id']!;
 
+    // Guard: only call backend if BOTH node IDs are real Supabase UUIDs.
+    // Local nodes ('you', 'add') and ingestion-temp IDs ('EXTRACTED-NODE-01')
+    // produce fake deterministic UUIDs that don't exist in the DB.
+    final currentUuid = nodeIdToUuid(currentNodeId);
+    final altUuid = nodeIdToUuid(alternativeNodeId);
+
+    if (!isValidUuid(currentNodeId) && !isValidUuid(currentUuid) ||
+        !isValidUuid(alternativeNodeId) && !isValidUuid(altUuid)) {
+      // Return a placeholder — the node hasn't synced to Supabase yet
+      return TradeoffAnalysisResponse.placeholder(
+        currentNodeId: currentUuid,
+        alternativeNodeId: altUuid,
+      );
+    }
+
     // Map frontend mock string IDs → deterministic UUIDs the backend accepts
     final request = TradeoffRequest(
-      currentNodeId: nodeIdToUuid(currentNodeId),
-      alternativeNodeId: nodeIdToUuid(alternativeNodeId),
+      currentNodeId: currentUuid,
+      alternativeNodeId: altUuid,
       orgId: kFrontendDefaultOrgId,
       // Use a fixed sentinel alert ID. In production, the real alert UUID
       // is passed in from the disruption broadcast payload.

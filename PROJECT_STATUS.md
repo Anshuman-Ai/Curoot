@@ -9,6 +9,7 @@ Curoot is a high-end, intelligent supply chain platform featuring a dynamic, nod
 - **Backend API:** FastAPI (Python) — Uvicorn, APScheduler
 - **AI Engine:** Google Gemini 1.5 Flash via `google-genai` SDK (Structured Outputs)
 - **Database & Auth:** Supabase (PostgreSQL, Row Level Security, Realtime WebSockets)
+- **Containerisation:** Docker / Docker Compose (MCP Zero-Trust adapters)
 - **Design System:** Custom Dark-Mode tokens, Google Fonts (`Manrope`)
 
 ---
@@ -52,15 +53,60 @@ Curoot is a high-end, intelligent supply chain platform featuring a dynamic, nod
 - **Debounced Position Persistence:** Node drag events update local state at 60fps and persist coordinates to Supabase via a 500ms `Timer` debounce to prevent API rate-limit throttling.
 - **Loading States:** Canvas UI displays a `CircularProgressIndicator` while the initial Supabase fetch completes.
 
-### 7. Omni Ingestion Backend (Cold Start & Continuous Sync)
-- **Cold Start AI Parsing (`/api/v1/ingestion/unstructured`):** Accepts raw files (PDFs, CSVs) and routes them to Gemini 1.5 Flash for structured extraction using Pydantic `AIExtractionResult` schema with `response_schema` enforcement.
-- **Modern Push Telemetry (`/api/v1/ingestion/telemetry`):** Accepts JSON heartbeats, strips unauthorized fields via `UniversalFilter`, and routes crisis messages to Gemini NLP for intelligent status classification (`operational`/`pending`/`delayed`/`offline`).
-- **MCP Container Generator (`/api/v1/mcp_mgr/generate`):** Dynamically generates `docker-compose.yml` and `mcp_runner.py` Shock Absorber scripts for on-premise legacy DB sync using SQLite buffering.
+### 7. Omni-Format AI Ingestion & Generation Layer (SRS §2.1) ✅ COMPLETE
+All three tracks of the Omni Ingestion gateway are fully implemented and tested:
 
-### 8. AI Service Upgrade (`backend/app/services/ai_service.py`)
-- **SDK Migration:** Replaced deprecated `google.generativeai` with the modern `google-genai` SDK (`google.genai.Client`).
-- **Graceful Degradation:** If `GEMINI_API_KEY` is not set, the service safely returns stub data without crashing the server, enabling offline development.
-- **Structured Outputs:** Uses Gemini's native Pydantic schema binding for type-safe AI responses.
+#### Track 1 — Cold Start (Unstructured AI Parsing)
+- **Multimodal File Parsing (`/api/v1/ingestion/unstructured`):** Accepts PDFs (binary via Gemini multimodal `Part.from_bytes()`), CSVs, TXT files, and emails (`.eml` via Python `email` stdlib).
+- **Entity + Relationship Extraction:** Gemini 1.5 Flash extracts `SupplyChainNode` entities AND `SupplyChainEdge` relationships with geographic coordinates.
+- **Database Persistence:** Extracted nodes are upserted into `supply_chain_nodes`, edges into `node_edges`, with `ingestion_jobs` tracking each upload.
+- **Frontend Integration:** Drag-and-drop zone, file picker, and AI extraction result dialog in `OmniIngestionPanel`.
+
+#### Track 2 — Continuous Sync (Zero-Trust MCP Pull)
+- **Dynamic MCP Script Generation (`/api/v1/mcp_mgr/generate`):** Generates fully working Python scripts customised per database type (PostgreSQL, MySQL, Oracle, SQL Server) with proper driver imports and connection strings.
+- **SQLite Shock Absorber:** Generated containers buffer data locally in SQLite to prevent read-heavy polling from crashing legacy databases.
+- **Append-Only HTTPS Push:** MCP containers push data outward via secure HTTPS to the platform's ingestion webhook.
+- **AI Natural-Language Prompt:** Gemini 1.5 Flash generates contextual confirmation messages (e.g., "I have generated the secure MCP connector for your Oracle ERP…").
+- **Reference Implementation (`mcp-template/`):** Full working container with `erp_connector.py` (factory-pattern multi-DB), `sqlite_buffer.py` (Shock Absorber), `sync_worker.py` (HTTPS push), `main.py` (poll loop), `Dockerfile`, and `requirements.txt`.
+- **Frontend MCP Wizard:** 4-step wizard (Config → Generation → Verification → Download) with terminal animation and clipboard copy.
+- **Supabase Tracking:** `ingestion_jobs` and `mcp_containers` records persisted on generation.
+
+#### Track 3 — Modern Push (Webhooks + Smart Router)
+- **Deterministic Universal Filter (`UniversalFilter`):** Pydantic model with `extra = "ignore"` strips unauthorized keys (pricing, PII) at the schema level — Zero-Trust enforcement.
+- **Smart Routing:** Standard coordinate/status updates bypass the LLM entirely and update Supabase directly. Only crisis messages invoke AI compute.
+- **AI Co-Pilot Advisory:** Crisis messages trigger `generate_crisis_advisory()` which produces actionable advisories for the operations team, persisted to `telemetry_events`.
+- **Crisis NLP Classification:** `extract_status_from_crisis()` classifies operational status (`operational`/`pending`/`delayed`/`offline`) with keyword fallback.
+
+#### Smart Router & LLM Quota Preservation
+- Two distinct endpoints (`/unstructured` and `/telemetry`) with crisis-message branching.
+- Advanced AI compute is only invoked for complex crisis resolution and initial entity mapping — standard logistics tracking bypasses the LLM entirely.
+
+### 8. AI Service (`backend/app/services/ai_service.py`)
+- **Model:** Gemini 1.5 Flash (free tier) — one-line swap to upgrade to 2.5 Pro later.
+- **SDK:** Modern `google-genai` SDK (`google.genai.Client`) with Structured Outputs.
+- **Graceful Degradation:** Returns stub data when `GEMINI_API_KEY` is not set.
+- **Capabilities:** File parsing (multimodal), crisis NLP classification, Co-Pilot advisory generation, MCP natural-language prompts.
+
+### 9. Supabase Schema (`supabase/migrations/20260407113300_initial_schema.sql`)
+- **19 Tables:** organizations, organization_members, supply_chain_nodes, node_edges, ingestion_jobs, mcp_containers, telemetry_events, disruption_alerts, alert_state, macro_environment_signals, community_templates, template_nodes, node_invitations, rfp_requests, tradeoff_analyses, tradeoff_metrics, messages, communication_logs, audit.audit_log.
+- **Indexes:** GiST (geospatial), BRIN (time-series), GIN (JSONB), partial indexes for active records.
+- **RLS Policies:** Organization-scoped isolation on all tenant tables.
+- **Audit Schema:** Append-only regulatory logging with 7-year retention.
+
+### 10. Telemetry Events System
+- **Model (`backend/app/models/telemetry.py`):** `TelemetryEvent` and `TelemetryEventResponse` Pydantic schemas.
+- **Endpoints (`/api/v1/telemetry/events`):** POST to record events, GET to query by node_id with ordering and pagination.
+
+### 11. Docker Compose (`docker-compose.yml`)
+- **Full-stack local dev:** FastAPI backend service + optional MCP connector (activated via `--profile mcp`).
+- **Environment-driven:** All configuration via `.env` file.
+
+### 12. Test Suite (`backend/test_omni_layer.py`)
+- **9 integration tests** covering all three tracks:
+  - Cold Start: CSV, PDF binary, email `.eml` file uploads
+  - Modern Push: standard telemetry, crisis NLP, zero-trust key stripping
+  - Continuous Sync: MCP generation for PostgreSQL, Oracle, SQL Server
+- **All 9 tests passing** ✅
 
 ---
 
@@ -75,38 +121,10 @@ Curoot enforces a highly customized, premium "dark mode" industrial aesthetic:
 
 ---
 
-## 📂 Project Structure
-```text
-Curoot
-├── frontend/
-│   ├── lib/
-│   │   ├── main.dart
-│   │   ├── models/ (disruption_models.dart, tradeoff_models.dart, etc.)
-│   │   ├── services/ (api_client.dart, supabase_service.dart, location_service.dart)
-│   │   ├── state/ (canvas_provider.dart, settings_provider.dart)
-│   │   └── ui/
-│   │       ├── auth/ (login_page.dart, signup_page.dart)
-│   │       ├── canvas/ (multiplayer_canvas.dart, node_widget.dart)
-│   │       ├── community/ (community_screen.dart)
-│   │       ├── modals/ (add_node_modal.dart)
-│   │       ├── panels/ (left_panel.dart, right_panel.dart, omni_ingestion_panel.dart)
-│   │       └── settings/ (settings_page.dart)
-│   └── pubspec.yaml
-├── mcp-template/
-│   ├── src/ (erp_connector.py, main.py, sqlite_buffer.py, sync_worker.py)
-│   └── Dockerfile
-└── supabase/
-    ├── migrations/
-    ├── config.toml
-    └── seed.sql
-```
-
----
-
 ## 🟡 Pending / Future Work
 - **Multiplayer Cursor Presence:** Track and render other team members' mouse cursors on the canvas in real-time via Supabase Presence channels.
 - **MCP Kill-Switch API:** Build the backend endpoint that terminates active ERP sync containers on demand from the Settings dashboard.
 - **Add Node Flow:** Complete the interactive node creation menu inside the Left Panel (Tri-Layer Discovery: Active → Community → Maps).
 - **Authentication Polishing:** Ensure the Supabase Session handoff efficiently routes unauthenticated users back to the Login Page.
-- **Supabase Migration Deployment:** Run `supabase db push` to apply the `ui_x`/`ui_y` migration to the production instance.
-- **Gemini API Key Configuration:** Set `GEMINI_API_KEY` in the backend `.env` to activate live AI extraction (currently falling back to stubs).
+- **Supabase Migration Deployment:** Run `supabase db push` to apply the initial schema and `ui_x`/`ui_y` migration to the production instance.
+- **AI Model Upgrade Path:** Upgrade from Gemini 1.5 Flash (free tier) to Gemini 2.5 Pro by changing `MODEL_NAME` in `ai_service.py` when ready.

@@ -471,12 +471,16 @@ class _TradeoffNodeRowState extends ConsumerState<_TradeoffNodeRow> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(widget.alternativeNode.label,
-                      style: _body(
-                          size: 13,
-                          w: FontWeight.w500,
-                          color: Colors.white)),
-                  Row(children: [
+                  Flexible(
+                    child: Text(widget.alternativeNode.label,
+                        overflow: TextOverflow.ellipsis,
+                        style: _body(
+                            size: 13,
+                            w: FontWeight.w500,
+                            color: Colors.white)),
+                  ),
+                  const SizedBox(width: 6),
+                  Row(mainAxisSize: MainAxisSize.min, children: [
                     Icon(statusIcon, color: iconColor, size: 14),
                     const SizedBox(width: 6),
                     AnimatedRotation(

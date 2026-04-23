@@ -117,7 +117,7 @@ async def get_tradeoff(
         .select("*")
         .eq("id", str(analysis_id))
         .eq("organization_id", str(current_org_id))
-        .single()
+        .maybe_single()
         .execute()
     )
 
