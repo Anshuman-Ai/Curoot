@@ -371,32 +371,35 @@ class _AddNodePanelState extends ConsumerState<AddNodePanel>
         const SizedBox(height: 10),
 
         // Channel toggle
-        Row(children: [
-          const Text('Channel:',
-              style: TextStyle(color: Colors.white38, fontSize: 12)),
-          const SizedBox(width: 10),
-          ChoiceChip(
-            label: const Text('Email'),
-            selected: _channel == 'email',
-            onSelected: (_) => setState(() => _channel = 'email'),
-            selectedColor: _teal,
-            backgroundColor: const Color(0xFF1A1A22),
-            labelStyle: TextStyle(
-                color: _channel == 'email' ? Colors.black87 : Colors.white54,
-                fontSize: 12),
-          ),
-          const SizedBox(width: 8),
-          ChoiceChip(
-            label: const Text('WhatsApp'),
-            selected: _channel == 'whatsapp',
-            onSelected: (_) => setState(() => _channel = 'whatsapp'),
-            selectedColor: Colors.green.shade400,
-            backgroundColor: const Color(0xFF1A1A22),
-            labelStyle: TextStyle(
-                color: _channel == 'whatsapp' ? Colors.black87 : Colors.white54,
-                fontSize: 12),
-          ),
-        ]),
+        Wrap(
+          crossAxisAlignment: WrapCrossAlignment.center,
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            const Text('Channel:',
+                style: TextStyle(color: Colors.white38, fontSize: 12)),
+            ChoiceChip(
+              label: const Text('Email'),
+              selected: _channel == 'email',
+              onSelected: (_) => setState(() => _channel = 'email'),
+              selectedColor: _teal,
+              backgroundColor: const Color(0xFF1A1A22),
+              labelStyle: TextStyle(
+                  color: _channel == 'email' ? Colors.black87 : Colors.white54,
+                  fontSize: 12),
+            ),
+            ChoiceChip(
+              label: const Text('WhatsApp'),
+              selected: _channel == 'whatsapp',
+              onSelected: (_) => setState(() => _channel = 'whatsapp'),
+              selectedColor: Colors.green.shade400,
+              backgroundColor: const Color(0xFF1A1A22),
+              labelStyle: TextStyle(
+                  color: _channel == 'whatsapp' ? Colors.black87 : Colors.white54,
+                  fontSize: 12),
+            ),
+          ],
+        ),
         const SizedBox(height: 10),
 
         // Phone field (shown only for WhatsApp)
