@@ -20,8 +20,7 @@ final tradeoffProvider = FutureProvider.family<TradeoffAnalysisResponse, Map<Str
     final currentUuid = nodeIdToUuid(currentNodeId);
     final altUuid = nodeIdToUuid(alternativeNodeId);
 
-    if (!isValidUuid(currentNodeId) && !isValidUuid(currentUuid) ||
-        !isValidUuid(alternativeNodeId) && !isValidUuid(altUuid)) {
+    if (!isValidUuid(currentNodeId) || !isValidUuid(alternativeNodeId)) {
       // Return a placeholder — the node hasn't synced to Supabase yet
       return TradeoffAnalysisResponse.placeholder(
         currentNodeId: currentUuid,

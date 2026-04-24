@@ -554,7 +554,8 @@ async def _avg_telemetry_cost(supabase: Any, node_id: UUID) -> float:
             .gte("recorded_at", "now() - interval '90 days'")
             .execute()
         )
-        values = [float(r["cost_usd"]) for r in (resp.data or []) if r.get("cost_usd") is not None]
+        data = getattr(resp, "data", []) or []
+        values = [float(r["cost_usd"]) for r in data if r.get("cost_usd") is not None]
         return sum(values) / len(values) if values else 0.0
     except Exception:  # noqa: BLE001
         return 0.0
@@ -571,7 +572,8 @@ async def _on_time_rate(supabase: Any, node_id: UUID, org_id: UUID) -> float:
             .gte("recorded_at", "now() - interval '90 days'")
             .execute()
         )
-        total = all_resp.count or len(all_resp.data or [])
+        all_data = getattr(all_resp, "data", []) or []
+        total = getattr(all_resp, "count", 0) or len(all_data)
         if total == 0:
             return 100.0  # no data → assume reliable
 
@@ -584,7 +586,8 @@ async def _on_time_rate(supabase: Any, node_id: UUID, org_id: UUID) -> float:
             .gte("recorded_at", "now() - interval '90 days'")
             .execute()
         )
-        on_time = on_time_resp.count or len(on_time_resp.data or [])
+        on_time_data = getattr(on_time_resp, "data", []) or []
+        on_time = getattr(on_time_resp, "count", 0) or len(on_time_data)
         return (on_time / total) * 100.0
     except Exception:  # noqa: BLE001
         return 100.0
@@ -600,6 +603,6 @@ async def _fetch_node(supabase: Any, node_id: UUID, org_id: UUID) -> Dict[str, A
         .maybe_single()
         .execute()
     )
-    if not resp.data:
+    if getattr(resp, "data", None) is None:
         raise ValueError(f"Node {node_id} not found for org {org_id}")
     return resp.data

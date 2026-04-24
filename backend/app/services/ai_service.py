@@ -22,16 +22,16 @@ from app.models.ai_parser import (
     SupplyChainEdge,
     Coordinate,
 )
+from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
-# Gemini client — Gemini 1.5 Flash (free tier)
-# To upgrade later, change MODEL_NAME to "gemini-2.5-pro" (one-line swap)
+# Gemini client — Gemini 2.5 Flash
 # ---------------------------------------------------------------------------
-MODEL_NAME = "gemini-1.5-flash"
+MODEL_NAME = "gemini-2.5-flash"
 
-api_key = os.getenv("GEMINI_API_KEY")
+api_key = settings.GEMINI_API_KEY
 client = genai.Client(api_key=api_key) if api_key else None
 
 

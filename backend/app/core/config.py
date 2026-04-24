@@ -13,6 +13,11 @@ class Settings(BaseSettings):
     SUPABASE_SERVICE_ROLE_KEY: str = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
 
     # ------------------------------------------------------------------
+    # AI Services
+    # ------------------------------------------------------------------
+    GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")
+
+    # ------------------------------------------------------------------
     # Module 2.5 / 2.6 — External API keys (free tier)
     # ------------------------------------------------------------------
     # NewsAPI — https://newsapi.org  (free: 100 req/day)

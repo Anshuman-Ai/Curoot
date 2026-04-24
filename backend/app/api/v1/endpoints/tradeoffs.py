@@ -121,7 +121,7 @@ async def get_tradeoff(
         .execute()
     )
 
-    if not analysis_resp.data:
+    if getattr(analysis_resp, "data", None) is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"TradeoffAnalysis {analysis_id} not found",
