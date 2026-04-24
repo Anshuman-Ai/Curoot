@@ -180,7 +180,7 @@ class _HeartbeatPanelState extends ConsumerState<HeartbeatPanel> {
     }
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
       decoration: _tileDecoration(
         border: isDark ? Colors.redAccent.withValues(alpha: 0.3) : _kTileBorder,
       ),
@@ -208,7 +208,7 @@ class _HeartbeatPanelState extends ConsumerState<HeartbeatPanel> {
           const Spacer(),
           Text('CONF $confText',
               style: _label(size: 9, w: FontWeight.w500, spacing: 0, color: Colors.white38)),
-          const SizedBox(width: 10),
+          const SizedBox(width: 6),
           const Icon(Icons.access_time, size: 10, color: Colors.white38),
           const SizedBox(width: 3),
           Text(timeAgo,
