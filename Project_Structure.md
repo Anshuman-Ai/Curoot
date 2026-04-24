@@ -150,5 +150,6 @@ This document defines the monorepo file architecture for the platform. The syste
     └── migrations/
         ├── 20260407113300_initial_schema.sql       # Full schema — 19 tables, indexes, RLS, audit
         ├── 20260423012300_add_canvas_ui_coordinates.sql  # Adds ui_x/ui_y for canvas positions
-        └── 20260424_heartbeat_module.sql           # Adds magic_link_tokens, updates node_data for dark nodes
+        ├── 20260424_heartbeat_module.sql           # Adds magic_link_tokens, updates node_data for dark nodes
+        └── 20260425_schema_reconciliation.sql      # Synchronizes schema fields with backend Pydantic models
 ```

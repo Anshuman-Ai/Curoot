@@ -81,6 +81,10 @@ FKs:
 organization_id → organizations.id
 partner_org_id → organizations.id (nullable)
 
+Fields of Interest:
+- `ui_x`, `ui_y` (decoupled visual coordinates)
+- `country_code` (for macro environment mapping)
+
 Relationships:
 
 1 → N node_edges (as source)
@@ -186,6 +190,9 @@ node_id → supply_chain_nodes.id (nullable)
 edge_id → node_edges.id (nullable)
 organization_id → organizations.id
 
+Features:
+- Submits `abstracted_payload` for Zero-Knowledge Tier-2+ disruptions
+
 Rule:
 
 Either node_id OR edge_id must exist
@@ -204,6 +211,10 @@ organization_id → organizations.id
 current_node_id → supply_chain_nodes.id
 alternative_node_id → supply_chain_nodes.id
 disruption_alert_id → disruption_alerts.id
+
+Key Fields:
+- `overall_recommendation` (switch/stay)
+- `recommendation_confidence`
 
 Relationships:
 

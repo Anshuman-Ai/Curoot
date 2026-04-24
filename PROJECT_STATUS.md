@@ -17,11 +17,12 @@ Curoot is a high-end, intelligent supply chain platform featuring a dynamic, nod
 ## 🟢 Completed Features
 
 ### 1. Interactive Multiplayer Canvas (`lib/ui/canvas/multiplayer_canvas.dart`)
-- **Infinite 2D Workspace:** Engineered with an unbounded `InteractiveViewer` and intercepted `PointerScrollEvent` for smooth, bidirectional (X/Y) panning.
-- **Node & Edge Rendering:** Custom painters render edges and positioned node widgets. 
-- **Draggable Nodes:** Real-time state updates when dragging nodes.
-- **Top Utility Bar:** Features buttons for "Search", "Recenter (crosshair)", and a premium "Community" marketplace button.
-- **Background Aesthetics:** Infinite dot-grid background mapped directly to the matrix transformation for synchronized scaling.
+- **Hierarchical Radial Layout:** Advanced deterministic node placement radiating outward from the "You" node based on graph distance (`canvas_provider.dart`).
+- **Auto-Edge Connections:** Newly ingested "root" nodes automatically connect to the "You" node to ensure continuous graph connectivity.
+- **Collision Avoidance:** Multi-pass physics engine to repel overlapping nodes while maintaining the radial tier structure.
+- **Filter State Management:** Unified `CanvasFilter` state with UI chip toggles (All, Active, Delayed, Offline, Suppliers, Factories) overlaid directly on the canvas.
+- **Infinite 2D Workspace:** Engineered with an unbounded `InteractiveViewer` and intercepted `PointerScrollEvent` for smooth, bidirectional panning.
+- **Top Utility Bar:** Features buttons for "Search", "Auto-Organize", "Recenter (crosshair)", and a premium "Community" marketplace button.
 
 ### 2. Left Navigation Panel (`lib/ui/panels/left_panel.dart`)
 - **Expandable Side-Rail:** Elegant expanding navigation (60px tray to 320px expanded panel) with animated width transitions.
@@ -83,9 +84,9 @@ All three tracks of the Omni Ingestion gateway are fully implemented and tested:
 
 ### 8. The "Heartbeat" Module & AI-Assisted Remote Control (SRS §2.7) ✅ COMPLETE
 - **Conversational Magic Link (The "Remote Control"):** 
-  - Tokenized Magic Link system allowing suppliers to report statuses via a frictionless Progressive Web App (PWA) chat interface (`supplier_chat.html`).
+  - Tokenized Magic Link system allowing suppliers to report statuses via a frictionless standalone Progressive Web App (`supplier_chat.html`).
   - Pre-Database Local Parsing using Gemini 1.5 Flash to extract `status` (operational/pending/delayed/offline), `latency_hours`, and `reason` from natural language updates.
-  - OEM dispatch functionality directly from the canvas to ping suppliers.
+  - The OEM manager can dispatch a message directly from the simplified Magic Link Module panel on the canvas.
 - **Database-Driven Orchestration:** 
   - Single JSON payload fan-out. A message writes to the `messages` table, updates `supply_chain_nodes` status/timestamps, and triggers a real-time webhook broadcast to update the canvas instantly without heavy polling.
 - **The "Dark Node" Predictive Engine:** 
@@ -100,6 +101,7 @@ All three tracks of the Omni Ingestion gateway are fully implemented and tested:
 
 ### 10. Supabase Schema (`supabase/migrations/`)
 - **20 Tables:** organizations, organization_members, supply_chain_nodes, node_edges, ingestion_jobs, mcp_containers, telemetry_events, disruption_alerts, alert_state, macro_environment_signals, community_templates, template_nodes, node_invitations, rfp_requests, tradeoff_analyses, tradeoff_metrics, messages, communication_logs, magic_link_tokens, audit.audit_log.
+- **Reconciliation Updates:** `20260425_schema_reconciliation.sql` applied to ensure 1:1 parity between backend Pydantic models and the database (e.g., `ui_x/ui_y`, `country_code`, `abstracted_payload`, `overall_recommendation`).
 - **Indexes:** GiST (geospatial), BRIN (time-series), GIN (JSONB), partial indexes for active records.
 - **RLS Policies:** Organization-scoped isolation on all tenant tables.
 - **Audit Schema:** Append-only regulatory logging with 7-year retention.
@@ -124,7 +126,7 @@ All three tracks of the Omni Ingestion gateway are fully implemented and tested:
 - **Backend Refactoring:** Updated RFP services and templates to support PII-sanitized public publishing.
 
 ### 15. Node Discovery & Onboarding (SRS §2.3) ✅ COMPLETE
-- **Add Node Flow:** Integrated the interactive "Add Node" discovery menu in the Left Panel and via a floating action button (`_AddNodeFab`).
+- **Add Node Flow:** Integrated the interactive "Add Node" discovery menu in the Left Panel.
 - **Hierarchical Discovery (Tier 1-3):** Implemented radius-aware search for Active, Community, and OSM cached nodes.
 - **Multi-Channel Dispatch:** Created invite workflows natively supporting Email and WhatsApp routing, generating tracking links directly on the canvas.
 
