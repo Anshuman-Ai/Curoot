@@ -5,8 +5,9 @@ Serves the PWA chat interface and handles supplier messages.
 No password, no app download — just a tokenized Magic Link.
 
 Routes:
-  GET  /supplier/chat          — Serve the PWA HTML page
-  POST /supplier/chat/{token}  — Supplier submits a chat message
+  GET  /supplier/chat               — Serve the PWA HTML page
+  GET  /supplier/chat-data/{token}  — Validate + fetch history (PWA convenience)
+  POST /supplier/chat/{token}       — Supplier submits a chat message
 """
 
 from __future__ import annotations
@@ -42,6 +43,47 @@ async def serve_supplier_chat():
             detail="Supplier chat interface not found",
         )
     return HTMLResponse(content=_CHAT_HTML.read_text(encoding="utf-8"))
+
+
+@router.get("/supplier/chat-data/{token}")
+async def get_chat_data(token: str):
+    """
+    Convenience endpoint for the Magic Link PWA.
+
+    Validates the token and returns the full chat context in a single call:
+    - Token validity + node/org context
+    - Chat history for the node
+
+    This avoids the PWA needing two sequential requests on page load.
+    """
+    validation = await heartbeat_service.validate_magic_link(token)
+    if not validation.valid:
+        return {
+            "valid": False,
+            "error": validation.error or "Token invalid or expired",
+        }
+
+    history = await heartbeat_service.get_chat_history(
+        node_id=validation.node_id, limit=100
+    )
+
+    return {
+        "valid": True,
+        "node_id": validation.node_id,
+        "node_name": validation.node_name,
+        "organization_name": validation.organization_name,
+        "messages": [
+            {
+                "id": m.id,
+                "sender_type": m.sender_type,
+                "content": m.content,
+                "parsed_data": m.parsed_data,
+                "parse_confidence": m.parse_confidence,
+                "created_at": m.created_at,
+            }
+            for m in history.messages
+        ],
+    }
 
 
 @router.post("/supplier/chat/{token}", response_model=ChatMessageResponse)

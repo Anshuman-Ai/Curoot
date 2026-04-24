@@ -116,6 +116,46 @@ class AlertBroadcaster:
                 extra={"action": "broadcast_macro_update", "org_id": str(org_id)},
             )
 
+    async def broadcast_upstream_alert(
+        self, org_id: UUID, target_node_id: UUID, abstracted_payload: dict
+    ) -> None:
+        """
+        Broadcast to org:{org_id}:upstream-alerts.
+
+        Payload schema:
+          { target_node_id, abstracted_payload }
+        """
+        channel_name = f"org:{org_id}:upstream-alerts"
+        broadcast_payload = {
+            "target_node_id": str(target_node_id),
+            "abstracted_payload": abstracted_payload,
+        }
+
+        t0 = time.monotonic()
+        try:
+            supabase = get_supabase_client()
+            supabase.channel(channel_name).send(
+                type="broadcast",
+                event="upstream_alert",
+                payload=broadcast_payload,
+            )
+            duration_ms = int((time.monotonic() - t0) * 1000)
+            logger.info(
+                "Broadcast upstream alert",
+                extra={
+                    "action": "broadcast_upstream_alert",
+                    "channel": channel_name,
+                    "target_node_id": str(target_node_id),
+                    "org_id": str(org_id),
+                    "duration_ms": duration_ms,
+                },
+            )
+        except Exception as exc:  # noqa: BLE001
+            logger.error(
+                "Failed to broadcast upstream alert to %s: %s", channel_name, exc,
+                extra={"action": "broadcast_upstream_alert", "org_id": str(org_id)},
+            )
+
     async def update_alert_state_table(
         self, alert_id: UUID, status: str
     ) -> None:
@@ -151,3 +191,6 @@ class AlertBroadcaster:
                 "Failed to update alert state for %s: %s", alert_id, exc,
                 extra={"action": "update_alert_state_table", "alert_id": str(alert_id)},
             )
+
+alert_broadcaster = AlertBroadcaster()
+

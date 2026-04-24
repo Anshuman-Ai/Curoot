@@ -85,9 +85,13 @@ class _NodeWidgetState extends State<NodeWidget>
           break;
         case NodeStatus.offline:
           statusColor = const Color(0xFF555555);
-          nodeOpacity = 0.30; // Dark Node — very faded (SRS §2.7.3)
           statusIndicator = Icons.signal_wifi_off;
           break;
+      }
+      
+      if (widget.node.abstractedPayload != null) {
+        statusColor = Colors.orangeAccent;
+        statusIndicator = Icons.shield_outlined; // Shield for abstracted node
       }
     }
 
@@ -244,10 +248,47 @@ class _NodeWidgetState extends State<NodeWidget>
                           ),
                         ),
                       ),
+                    
+                    // Abstracted upstream exception badge
+                    if (!isDark && widget.node.abstractedPayload != null)
+                      Positioned(
+                        bottom: -4,
+                        right: -4,
+                        child: Container(
+                          width: 20,
+                          height: 20,
+                          decoration: BoxDecoration(
+                            color: Colors.orangeAccent,
+                            shape: BoxShape.circle,
+                            border: Border.all(color: const Color(0xFF22222A), width: 1.5),
+                          ),
+                          child: const Center(
+                            child: Icon(
+                              Icons.shield_outlined,
+                              color: Colors.white,
+                              size: 12,
+                            ),
+                          ),
+                        ),
+                      ),
                   ],
                 );
               },
             ),
+            
+            // Text for abstracted delay below the node
+            if (!isDark && widget.node.abstractedPayload != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 4.0),
+                child: Text(
+                  widget.node.abstractedPayload!['status'] ?? 'Upstream Delay',
+                  style: const TextStyle(
+                    color: Colors.orangeAccent,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
           ],
         ),
       ),

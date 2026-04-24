@@ -11,6 +11,7 @@ class SupplyChainNode(BaseModel):
     type: str = Field(..., description="Type of node (e.g., supplier, warehouse, retail)")
     location: Coordinate = Field(..., description="Geographical location of the node")
     status: str = Field("operational", description="Current operational status")
+    country_code: Optional[str] = Field(None, description="ISO-2 country code (e.g., DE, CN, IN)")
 
 class SupplyChainEdge(BaseModel):
     """Represents a directed relationship between two supply chain nodes."""

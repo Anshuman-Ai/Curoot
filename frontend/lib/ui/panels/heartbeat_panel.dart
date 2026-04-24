@@ -3,14 +3,11 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../state/canvas_provider.dart';
-import '../../state/heartbeat_provider.dart';
 import '../../services/api_client.dart';
 
 // ── Design tokens (matches right_panel.dart) ──────────────────────────────
 const _kTileBg = Color(0xFF313533);
 const _kTileBorder = Color(0xFF2D3449);
-const _kDivider = Color(0xFF2D3449);
-const _kAccent = Color(0xFF8083FF);
 const _kTeal = Color(0xFF2DD4BF);
 
 TextStyle _label({
@@ -78,37 +75,25 @@ class _HeartbeatPanelState extends ConsumerState<HeartbeatPanel> {
       return const SizedBox.shrink();
     }
 
-    final chatAsync = ref.watch(chatHistoryProvider(widget.nodeId));
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         // ── Header ──────────────────────────────────────────
-        Center(
-          child: Text(
-            'HEARTBEAT',
-            style: _label(
-              size: 11,
-              w: FontWeight.w700,
-              spacing: 1.2,
-              color: Colors.white,
+        Row(
+          children: [
+            const Icon(Icons.link, color: _kTeal, size: 16),
+            const SizedBox(width: 8),
+            Text(
+              'MAGIC LINK MODULE',
+              style: _label(
+                size: 11,
+                w: FontWeight.w700,
+                spacing: 1.2,
+                color: Colors.white,
+              ),
             ),
-          ),
+          ],
         ),
-        const SizedBox(height: 4),
-        Center(
-          child: Text(
-            'Conversational Remote Control',
-            style: _label(
-              size: 10,
-              w: FontWeight.w400,
-              spacing: 0,
-              color: Colors.white38,
-            ),
-          ),
-        ),
-        const SizedBox(height: 12),
-        const Divider(height: 1, color: _kDivider),
         const SizedBox(height: 12),
 
         // ── Status Bar ──────────────────────────────────────
@@ -117,34 +102,6 @@ class _HeartbeatPanelState extends ConsumerState<HeartbeatPanel> {
 
         // ── Magic Link ──────────────────────────────────────
         _buildMagicLinkButton(),
-        const SizedBox(height: 12),
-
-        // ── Chat Thread ─────────────────────────────────────
-        chatAsync.when(
-          loading: () => const Padding(
-            padding: EdgeInsets.symmetric(vertical: 16),
-            child: Center(
-              child: SizedBox(
-                width: 18,
-                height: 18,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: _kTeal,
-                ),
-              ),
-            ),
-          ),
-          error: (err, _) => Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8),
-            child: Text(
-              'Could not load chat',
-              style: _body(size: 11, color: Colors.white38),
-              textAlign: TextAlign.center,
-            ),
-          ),
-          data: (messages) => _buildChatThread(messages),
-        ),
-
         const SizedBox(height: 10),
 
         // ── Send Message ────────────────────────────────────
@@ -254,15 +211,18 @@ class _HeartbeatPanelState extends ConsumerState<HeartbeatPanel> {
                 size: 14,
               ),
             const SizedBox(width: 8),
-            Text(
-              _copiedLink != null
-                  ? 'Magic Link Copied!'
-                  : 'Generate Supplier Magic Link',
-              style: _label(
-                size: 11,
-                w: FontWeight.w600,
-                spacing: 0.3,
-                color: _copiedLink != null ? _kTeal : Colors.white70,
+            Flexible(
+              child: Text(
+                _copiedLink != null
+                    ? 'Magic Link Copied!'
+                    : 'Generate Supplier Magic Link',
+                overflow: TextOverflow.ellipsis,
+                style: _label(
+                  size: 11,
+                  w: FontWeight.w600,
+                  spacing: 0.3,
+                  color: _copiedLink != null ? _kTeal : Colors.white70,
+                ),
               ),
             ),
           ],
@@ -298,140 +258,7 @@ class _HeartbeatPanelState extends ConsumerState<HeartbeatPanel> {
     }
   }
 
-  // ── Chat thread ─────────────────────────────────────────────────────────
 
-  Widget _buildChatThread(List<ChatMessage> messages) {
-    if (messages.isEmpty) {
-      return Padding(
-        padding: const EdgeInsets.symmetric(vertical: 12),
-        child: Column(
-          children: [
-            const Icon(Icons.chat_bubble_outline, color: Colors.white24, size: 24),
-            const SizedBox(height: 6),
-            Text(
-              'No messages yet.\nGenerate a magic link and share with your supplier.',
-              textAlign: TextAlign.center,
-              style: _body(size: 11, color: Colors.white30),
-            ),
-          ],
-        ),
-      );
-    }
-
-    // Show last 5 messages, scrollable
-    final displayMessages = messages.length > 5
-        ? messages.sublist(messages.length - 5)
-        : messages;
-
-    return ConstrainedBox(
-      constraints: const BoxConstraints(maxHeight: 200),
-      child: ListView.builder(
-        shrinkWrap: true,
-        itemCount: displayMessages.length,
-        padding: EdgeInsets.zero,
-        itemBuilder: (context, index) {
-          final msg = displayMessages[index];
-          return _buildChatBubble(msg);
-        },
-      ),
-    );
-  }
-
-  Widget _buildChatBubble(ChatMessage msg) {
-    final isSupplier = msg.senderType == 'supplier';
-    final isOem = msg.senderType == 'oem';
-    final isSystem = msg.senderType == 'system';
-
-    Color bubbleColor;
-    Color labelColor;
-    String label;
-    CrossAxisAlignment alignment;
-
-    if (isSupplier) {
-      bubbleColor = const Color(0xFF1E2A3A);
-      labelColor = _kTeal;
-      label = 'SUPPLIER';
-      alignment = CrossAxisAlignment.end;
-    } else if (isOem) {
-      bubbleColor = const Color(0xFF2A1E3A);
-      labelColor = _kAccent;
-      label = 'YOU';
-      alignment = CrossAxisAlignment.start;
-    } else {
-      bubbleColor = const Color(0xFF1A1E1A);
-      labelColor = Colors.amber;
-      label = isSystem ? 'SYSTEM' : '🔔 PING';
-      alignment = CrossAxisAlignment.start;
-    }
-
-    // Parse timestamp
-    String timeStr = '';
-    try {
-      final dt = DateTime.parse(msg.createdAt);
-      timeStr = '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
-    } catch (_) {}
-
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 6),
-      child: Column(
-        crossAxisAlignment: alignment,
-        children: [
-          Container(
-            constraints: const BoxConstraints(maxWidth: 220),
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: bubbleColor,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(
-                color: labelColor.withValues(alpha: 0.12),
-                width: 1,
-              ),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(label,
-                        style: _label(size: 8, w: FontWeight.w700, spacing: 0.8, color: labelColor)),
-                    const Spacer(),
-                    Text(timeStr,
-                        style: _label(size: 8, w: FontWeight.w400, spacing: 0, color: Colors.white24)),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  msg.content,
-                  style: _body(size: 11, color: Colors.white70),
-                  maxLines: 4,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                // Show parsed data badge for supplier messages
-                if (isSupplier && msg.parsedData.isNotEmpty && msg.parsedData['status'] != null) ...[
-                  const SizedBox(height: 6),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: _kTeal.withValues(alpha: 0.08),
-                      borderRadius: BorderRadius.circular(4),
-                      border: Border.all(color: _kTeal.withValues(alpha: 0.15)),
-                    ),
-                    child: Text(
-                      '✓ ${(msg.parsedData['status'] as String).toUpperCase()}'
-                      '${msg.parsedData['latency_hours'] != null ? ' · +${msg.parsedData['latency_hours']}h' : ''}'
-                      '${msg.parsedData['reason'] != null ? ' · ${msg.parsedData['reason']}' : ''}',
-                      style: _label(size: 9, w: FontWeight.w500, spacing: 0, color: _kTeal),
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
   // ── Message input ───────────────────────────────────────────────────────
 
@@ -499,8 +326,7 @@ class _HeartbeatPanelState extends ConsumerState<HeartbeatPanel> {
         message: text,
       );
       _messageController.clear();
-      // Refresh chat history
-      ref.invalidate(chatHistoryProvider(widget.nodeId));
+      // No local chat history refresh needed anymore
     } catch (e) {
       debugPrint('Error sending OEM message: $e');
     }

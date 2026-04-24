@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../state/canvas_provider.dart';
 import 'edge_painter.dart';
 import 'node_widget.dart';
-import 'add_node_panel.dart';
 import '../panels/left_panel.dart';
 import '../panels/right_panel.dart';
 import '../community/community_screen.dart';
@@ -176,6 +175,8 @@ class _MultiplayerCanvasState extends ConsumerState<MultiplayerCanvas>
                   child: Consumer(
                     builder: (context, ref, _) {
                       final canvasState = ref.watch(canvasProvider);
+                      final visibleNodes = canvasState.filteredNodes;
+                      final visibleEdges = canvasState.filteredEdges;
                       return Stack(
                         clipBehavior: Clip.none,
                         children: [
@@ -183,14 +184,14 @@ class _MultiplayerCanvasState extends ConsumerState<MultiplayerCanvas>
                           Positioned.fill(
                             child: CustomPaint(
                               painter: EdgePainter(
-                                nodes: canvasState.nodes,
-                                edges: canvasState.edges,
+                                nodes: visibleNodes,
+                                edges: visibleEdges,
                               ),
                             ),
                           ),
 
                           // Draw Nodes
-                          ...canvasState.nodes.map((node) {
+                          ...visibleNodes.map((node) {
                             const double widgetWidth = 56.0;
                             const double widgetHeight = 90.0;
 
@@ -265,6 +266,36 @@ class _MultiplayerCanvasState extends ConsumerState<MultiplayerCanvas>
                             color: Colors.white70, size: 22),
                       ),
                     ),
+                  ),
+                  const SizedBox(width: 10),
+
+                  // ── Auto-organize button ──────────────────────────
+                  Consumer(
+                    builder: (context, ref, _) {
+                      return Material(
+                        color: Colors.transparent,
+                        child: Tooltip(
+                          message: 'Auto-organize nodes',
+                          child: InkWell(
+                            onTap: () {
+                              ref.read(canvasProvider.notifier).autoOrganize();
+                              _recenter();
+                            },
+                            borderRadius: BorderRadius.circular(14),
+                            child: Container(
+                              width: 48,
+                              height: 48,
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF22222A),
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                              child: const Icon(Icons.auto_fix_high,
+                                  color: Colors.amberAccent, size: 22),
+                            ),
+                          ),
+                        ),
+                      );
+                    },
                   ),
                   const SizedBox(width: 10),
 
@@ -346,12 +377,26 @@ class _MultiplayerCanvasState extends ConsumerState<MultiplayerCanvas>
             child: SafeArea(child: LeftPanel()),
           ),
 
-          // ── Floating [+] FAB — Node Discovery & Onboarding entry point ──
-          const Positioned(
-            right: 28,
-            bottom: 32,
-            child: _AddNodeFab(),
+          // ── Filter Chip Bar — bottom-left ─────────────────────────
+          Positioned(
+            left: 80,
+            bottom: 28,
+            child: SafeArea(
+              child: Consumer(
+                builder: (context, ref, _) {
+                  final currentFilter = ref.watch(
+                      canvasProvider.select((s) => s.filter));
+                  return _FilterChipBar(
+                    current: currentFilter,
+                    onChanged: (f) {
+                      ref.read(canvasProvider.notifier).setFilter(f);
+                    },
+                  );
+                },
+              ),
+            ),
           ),
+
         ],
       ),
     );
@@ -399,96 +444,89 @@ class GridPainter extends CustomPainter {
   }
 }
 
+
+
 // ══════════════════════════════════════════════════════════════════════════════
-// Floating [+] FAB — opens AddNodePanel in a bottom sheet
-// SRS §2.3 Phase 1: canonical canvas entry point for Node Discovery
+// Filter Chip Bar — compact, dark-themed node filter (bottom-left overlay)
 // ══════════════════════════════════════════════════════════════════════════════
-class _AddNodeFab extends StatefulWidget {
-  const _AddNodeFab();
-  @override
-  State<_AddNodeFab> createState() => _AddNodeFabState();
-}
+class _FilterChipBar extends StatelessWidget {
+  final CanvasFilter current;
+  final ValueChanged<CanvasFilter> onChanged;
 
-class _AddNodeFabState extends State<_AddNodeFab>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _pulse;
-  late Animation<double> _scale;
+  const _FilterChipBar({required this.current, required this.onChanged});
 
-  @override
-  void initState() {
-    super.initState();
-    _pulse = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 900),
-    )..repeat(reverse: true);
-    _scale = Tween<double>(begin: 1.0, end: 1.06).animate(
-      CurvedAnimation(parent: _pulse, curve: Curves.easeInOut),
-    );
-  }
-
-  @override
-  void dispose() {
-    _pulse.dispose();
-    super.dispose();
-  }
-
-  void _openPanel() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => DraggableScrollableSheet(
-        initialChildSize: 0.65,
-        minChildSize: 0.4,
-        maxChildSize: 0.92,
-        expand: false,
-        builder: (_, scrollController) => Container(
-          decoration: const BoxDecoration(
-            color: Color(0xFF16161E),
-            borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
-          ),
-          child: Column(children: [
-            // Drag handle
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 10),
-              child: Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: Colors.white24,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-            ),
-            const Expanded(child: AddNodePanel()),
-          ]),
-        ),
-      ),
-    );
-  }
+  static const _items = [
+    (CanvasFilter.all, 'All', Icons.grid_view_rounded),
+    (CanvasFilter.active, 'Active', Icons.check_circle_outline),
+    (CanvasFilter.delayed, 'Delayed', Icons.warning_amber_rounded),
+    (CanvasFilter.offline, 'Offline', Icons.signal_wifi_off),
+    (CanvasFilter.suppliers, 'Suppliers', Icons.local_shipping),
+    (CanvasFilter.factories, 'Factories', Icons.factory),
+  ];
 
   @override
   Widget build(BuildContext context) {
-    return ScaleTransition(
-      scale: _scale,
-      child: GestureDetector(
-        onTap: _openPanel,
-        child: Container(
-          width: 60,
-          height: 60,
-          decoration: BoxDecoration(
-            color: const Color(0xFF2DD4BF),
-            shape: BoxShape.circle,
-            boxShadow: [
-              BoxShadow(
-                color: const Color(0xFF2DD4BF).withValues(alpha: 0.45),
-                blurRadius: 20,
-                spreadRadius: 2,
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      decoration: BoxDecoration(
+        color: const Color(0xE6111118),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.white10, width: 1),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: _items.map((item) {
+          final (filter, label, icon) = item;
+          final isActive = filter == current;
+          return Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 3),
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: () => onChanged(filter),
+                borderRadius: BorderRadius.circular(10),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: isActive
+                        ? const Color(0xFF2DD4BF).withValues(alpha: 0.15)
+                        : Colors.transparent,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: isActive
+                          ? const Color(0xFF2DD4BF).withValues(alpha: 0.5)
+                          : Colors.white10,
+                      width: 1,
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(icon,
+                          size: 14,
+                          color: isActive
+                              ? const Color(0xFF2DD4BF)
+                              : Colors.white38),
+                      const SizedBox(width: 5),
+                      Text(
+                        label,
+                        style: TextStyle(
+                          color: isActive
+                              ? const Color(0xFF2DD4BF)
+                              : Colors.white38,
+                          fontSize: 11,
+                          fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
+                          letterSpacing: 0.3,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
-            ],
-          ),
-          child: const Icon(Icons.add, color: Colors.black87, size: 32),
-        ),
+            ),
+          );
+        }).toList(),
       ),
     );
   }

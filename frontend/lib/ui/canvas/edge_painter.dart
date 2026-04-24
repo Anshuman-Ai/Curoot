@@ -1,3 +1,4 @@
+import 'dart:math';
 import 'package:flutter/material.dart';
 import '../../state/canvas_provider.dart';
 
@@ -14,23 +15,34 @@ class EdgePainter extends CustomPainter {
       final target = nodes.where((n) => n.id == edge.targetId).firstOrNull;
 
       if (source != null && target != null) {
-        // Find color based on target node status
+        // Determine style based on target node status
         Color lineColor;
         double strokeW = 2.0;
+        bool useDash = false;
+
         switch (target.status) {
           case NodeStatus.active:
             lineColor = Colors.teal;
             break;
           case NodeStatus.pending:
             lineColor = Colors.white54;
+            useDash = true; // Dashed for unverified
             break;
           case NodeStatus.delayed:
             lineColor = Colors.redAccent;
-            strokeW = 2.5; // Emphasise disrupted edges
+            strokeW = 2.5;
             break;
           case NodeStatus.offline:
-            lineColor = Colors.white24; // Very faint for Dark Nodes
+            lineColor = Colors.white24;
+            useDash = true; // Dashed for dark/offline
             break;
+        }
+
+        // Override for abstracted upstream exception nodes
+        if (target.abstractedPayload != null) {
+          lineColor = Colors.orangeAccent;
+          strokeW = 2.0;
+          useDash = true;
         }
 
         final paint = Paint()
@@ -38,8 +50,9 @@ class EdgePainter extends CustomPainter {
           ..strokeWidth = strokeW
           ..style = PaintingStyle.stroke;
 
+        // Build cubic bezier path
         final dx = target.position.dx - source.position.dx;
-        
+
         final path = Path()
           ..moveTo(source.position.dx, source.position.dy)
           ..cubicTo(
@@ -48,13 +61,62 @@ class EdgePainter extends CustomPainter {
             target.position.dx, target.position.dy,
           );
 
-        _drawDashedCurve(canvas, path, paint);
+        if (useDash) {
+          _drawDashedCurve(canvas, path, paint);
+        } else {
+          canvas.drawPath(path, paint);
+        }
+
+        // Draw arrowhead at target
+        _drawArrowhead(
+          canvas, 
+          source.position, 
+          target.position, 
+          lineColor, 
+          strokeW,
+        );
       }
     }
   }
 
+  /// Draws a small triangular arrowhead at the target end of the edge.
+  void _drawArrowhead(
+    Canvas canvas,
+    Offset source,
+    Offset target,
+    Color color,
+    double strokeWidth,
+  ) {
+    const arrowSize = 10.0;
+    final dx = target.dx - source.dx;
+    final dy = target.dy - source.dy;
+    final angle = atan2(dy, dx);
+
+    // Pull back arrowhead slightly so it doesn't overlap the node
+    final tipX = target.dx - cos(angle) * 28;
+    final tipY = target.dy - sin(angle) * 28;
+
+    final path = Path()
+      ..moveTo(tipX, tipY)
+      ..lineTo(
+        tipX - arrowSize * cos(angle - 0.4),
+        tipY - arrowSize * sin(angle - 0.4),
+      )
+      ..lineTo(
+        tipX - arrowSize * cos(angle + 0.4),
+        tipY - arrowSize * sin(angle + 0.4),
+      )
+      ..close();
+
+    canvas.drawPath(
+      path,
+      Paint()
+        ..color = color
+        ..style = PaintingStyle.fill,
+    );
+  }
+
   void _drawDashedCurve(Canvas canvas, Path path, Paint basePaint) {
-    // Draw Dashed line on top
     const double dashWidth = 8.0;
     const double dashSpace = 8.0;
     

@@ -106,7 +106,10 @@ class RightPanel extends ConsumerWidget {
                     _nodeChip(selectedNode.label),
 
                     // Disruption alerts
-                    if (nodeAlerts.isNotEmpty) ...[
+                    if (selectedNode.abstractedPayload != null) ...[
+                      const SizedBox(height: 16),
+                      _abstractedAlertBox(selectedNode.abstractedPayload!),
+                    ] else if (nodeAlerts.isNotEmpty) ...[
                       const SizedBox(height: 16),
                       ...nodeAlerts.map((a) => _alertBox(a)),
                     ] else if (selectedNode.status == NodeStatus.delayed) ...[
@@ -329,6 +332,39 @@ class RightPanel extends ConsumerWidget {
             const SizedBox(height: 8),
             Text(
               'Port congestion nearby.\nPotential 3-day delay on outbound shipments to Hamburg.',
+              style: _body(size: 12, color: Colors.white60),
+            ),
+          ],
+        ),
+      );
+
+  Widget _abstractedAlertBox(Map<String, dynamic> payload) => Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: const Color(0xFF2A2010),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+              color: Colors.orangeAccent.withValues(alpha: 0.35), width: 1),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text('UPSTREAM EXCEPTION',
+                    style: _label(
+                        size: 11,
+                        w: FontWeight.w700,
+                        spacing: 0.5,
+                        color: Colors.orangeAccent)),
+                const Icon(Icons.shield_outlined,
+                    color: Colors.orangeAccent, size: 18),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              '${payload['status'] ?? 'Delayed'} | Reason: ${payload['reason'] ?? 'Upstream Exception'}\n(Identity and exact location abstracted to preserve Tier-2 privacy)',
               style: _body(size: 12, color: Colors.white60),
             ),
           ],

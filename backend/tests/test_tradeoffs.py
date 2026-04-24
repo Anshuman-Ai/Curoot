@@ -129,6 +129,7 @@ def _build_supabase_mock(
                             )
                             return single
                         eq2.single = _single
+                        eq2.maybe_single = _single
                         return eq2
                     eq.eq = _eq2
                     return eq

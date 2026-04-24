@@ -18,6 +18,7 @@ import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 from uuid import UUID
+from postgrest.exceptions import APIError
 
 from app.db.supabase import get_supabase_client
 from app.models.heartbeat import (
@@ -116,8 +117,14 @@ class HeartbeatService:
             "expires_at": expires_at.isoformat(),
             "is_revoked": False,
         }
-        supabase.table("magic_link_tokens").insert(row).execute()
-
+        
+        try:
+            supabase.table("magic_link_tokens").insert(row).execute()
+        except APIError as e:
+            if "23503" in str(e):
+                # Foreign key violation (node_id doesn't exist)
+                raise ValueError("Cannot generate magic link for a mock/local node that is not in the database.")
+            raise
         duration_ms = int((time.monotonic() - t0) * 1000)
         logger.info(
             "Magic link generated",

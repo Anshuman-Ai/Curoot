@@ -8,6 +8,9 @@ import '../services/supabase_service.dart';
 enum NodeStatus { active, pending, delayed, offline }
 enum NodeType { oem, add, factory, supplier }
 
+/// Canvas filter modes
+enum CanvasFilter { all, active, delayed, offline, suppliers, factories }
+
 /// Default organisation UUID used throughout when no auth-scoped org is available.
 const String kFrontendDefaultOrgId = '00000000-0000-0000-0000-000000000000';
 
@@ -40,6 +43,8 @@ class CanvasNode {
   final bool isDarkNode;
   final double heartbeatConfidence;
   final String? lastHeartbeatAt;
+  final Map<String, dynamic>? abstractedPayload;
+  final double? cascadeDelayHours;
 
   CanvasNode({
     required this.id,
@@ -50,6 +55,8 @@ class CanvasNode {
     this.isDarkNode = false,
     this.heartbeatConfidence = 1.0,
     this.lastHeartbeatAt,
+    this.abstractedPayload,
+    this.cascadeDelayHours,
   });
 
   CanvasNode copyWith({
@@ -61,6 +68,8 @@ class CanvasNode {
     bool? isDarkNode,
     double? heartbeatConfidence,
     String? lastHeartbeatAt,
+    Map<String, dynamic>? abstractedPayload,
+    double? cascadeDelayHours,
   }) {
     return CanvasNode(
       id: id ?? this.id,
@@ -71,6 +80,8 @@ class CanvasNode {
       isDarkNode: isDarkNode ?? this.isDarkNode,
       heartbeatConfidence: heartbeatConfidence ?? this.heartbeatConfidence,
       lastHeartbeatAt: lastHeartbeatAt ?? this.lastHeartbeatAt,
+      abstractedPayload: abstractedPayload ?? this.abstractedPayload,
+      cascadeDelayHours: cascadeDelayHours ?? this.cascadeDelayHours,
     );
   }
 }
@@ -92,12 +103,14 @@ class CanvasState {
   final List<CanvasEdge> edges;
   final String? selectedNodeId;
   final bool isLoading;
+  final CanvasFilter filter;
 
   CanvasState({
     required this.nodes,
     required this.edges,
     this.selectedNodeId,
     this.isLoading = false,
+    this.filter = CanvasFilter.all,
   });
 
   CanvasState copyWith({
@@ -105,13 +118,45 @@ class CanvasState {
     List<CanvasEdge>? edges,
     String? selectedNodeId,
     bool? isLoading,
+    CanvasFilter? filter,
   }) {
     return CanvasState(
       nodes: nodes ?? this.nodes,
       edges: edges ?? this.edges,
       selectedNodeId: selectedNodeId ?? this.selectedNodeId,
       isLoading: isLoading ?? this.isLoading,
+      filter: filter ?? this.filter,
     );
+  }
+
+  /// Returns nodes filtered by current filter mode.
+  List<CanvasNode> get filteredNodes {
+    switch (filter) {
+      case CanvasFilter.all:
+        return nodes;
+      case CanvasFilter.active:
+        return nodes.where((n) =>
+            n.status == NodeStatus.active || n.id == 'you' || n.id == 'add').toList();
+      case CanvasFilter.delayed:
+        return nodes.where((n) =>
+            n.status == NodeStatus.delayed || n.id == 'you' || n.id == 'add').toList();
+      case CanvasFilter.offline:
+        return nodes.where((n) =>
+            n.status == NodeStatus.offline || n.isDarkNode || n.id == 'you' || n.id == 'add').toList();
+      case CanvasFilter.suppliers:
+        return nodes.where((n) =>
+            n.type == NodeType.supplier || n.id == 'you' || n.id == 'add').toList();
+      case CanvasFilter.factories:
+        return nodes.where((n) =>
+            n.type == NodeType.factory || n.type == NodeType.oem || n.id == 'you' || n.id == 'add').toList();
+    }
+  }
+
+  /// Returns edges where both endpoints are in filtered nodes.
+  List<CanvasEdge> get filteredEdges {
+    final visibleIds = filteredNodes.map((n) => n.id).toSet();
+    return edges.where((e) =>
+        visibleIds.contains(e.sourceId) && visibleIds.contains(e.targetId)).toList();
   }
 }
 
@@ -159,6 +204,11 @@ class CanvasNotifier extends Notifier<CanvasState> {
     return initialState;
   }
 
+  // ── Filter ────────────────────────────────────────────────────────────
+  void setFilter(CanvasFilter filter) {
+    state = state.copyWith(filter: filter);
+  }
+
   Future<void> _initData() async {
     try {
       final supabase = SupabaseService();
@@ -167,15 +217,21 @@ class CanvasNotifier extends Notifier<CanvasState> {
       final nodesData = await supabase.fetchSupplyChainNodes(kFrontendDefaultOrgId);
       final edgesData = await supabase.fetchNodeEdges(kFrontendDefaultOrgId);
 
+      // Track which nodes have NO saved position (need auto-layout)
+      final needsLayout = <String>{};
+
       final fetchedNodes = nodesData.map((n) {
-        // Fallback for unpositioned nodes is handled near the center (5000, 5000)
-        final double x = n['ui_x']?.toDouble() ?? (5000.0 + (n['id'].hashCode % 200 - 100));
-        final double y = n['ui_y']?.toDouble() ?? (4800.0 + (n['id'].hashCode % 200 - 100));
+        final bool hasSavedPos = n['ui_x'] != null && n['ui_y'] != null;
+        final double x = n['ui_x']?.toDouble() ?? 5000.0;
+        final double y = n['ui_y']?.toDouble() ?? 5000.0;
         final bool isDark = n['is_dark_node'] == true;
         final double hbConf = (n['heartbeat_confidence'] ?? 1.0).toDouble();
+        final nodeId = n['id'].toString();
         
+        if (!hasSavedPos) needsLayout.add(nodeId);
+
         return CanvasNode(
-          id: n['id'].toString(),
+          id: nodeId,
           label: n['name'] ?? 'Unknown Node',
           type: _parseNodeType(n['node_type']),
           status: isDark ? NodeStatus.offline : _parseNodeStatus(n['status']),
@@ -183,6 +239,8 @@ class CanvasNotifier extends Notifier<CanvasState> {
           isDarkNode: isDark,
           heartbeatConfidence: hbConf,
           lastHeartbeatAt: n['last_heartbeat_at']?.toString(),
+          abstractedPayload: n['abstracted_payload'],
+          cascadeDelayHours: (n['cascade_delay_hours'] as num?)?.toDouble(),
         );
       }).toList();
 
@@ -194,9 +252,34 @@ class CanvasNotifier extends Notifier<CanvasState> {
         );
       }).toList();
 
-      // Merge fetched with default
-      final mergedNodes = [...state.nodes, ...fetchedNodes];
-      final mergedEdges = [...state.edges, ...fetchedEdges];
+      // Merge fetched with default nodes
+      var mergedNodes = [...state.nodes, ...fetchedNodes];
+      var mergedEdges = [...state.edges, ...fetchedEdges];
+
+      // ── Auto-connect: create edges from 'you' to root nodes ──────────
+      // A "root node" is any DB node that has no inbound edge from another DB node.
+      final allTargetIds = mergedEdges.map((e) => e.targetId).toSet();
+      for (final node in fetchedNodes) {
+        // Skip if this node already has an inbound edge
+        if (allTargetIds.contains(node.id)) continue;
+        // Create synthetic edge from 'you' to this root node
+        final synEdgeId = 'auto-you-${node.id}';
+        if (!mergedEdges.any((e) => e.id == synEdgeId)) {
+          mergedEdges.add(CanvasEdge(
+            id: synEdgeId,
+            sourceId: 'you',
+            targetId: node.id,
+          ));
+        }
+      }
+
+      // ── Hierarchical Radial Layout for unpositioned nodes ────────────
+      if (needsLayout.isNotEmpty) {
+        mergedNodes = _applyRadialLayout(mergedNodes, mergedEdges, needsLayout);
+      }
+
+      // ── Collision avoidance pass ─────────────────────────────────────
+      mergedNodes = _resolveCollisions(mergedNodes);
 
       state = state.copyWith(
         nodes: mergedNodes,
@@ -223,6 +306,138 @@ class CanvasNotifier extends Notifier<CanvasState> {
     }
   }
 
+  // ═══════════════════════════════════════════════════════════════════════
+  // Hierarchical Radial Layout Algorithm
+  // ═══════════════════════════════════════════════════════════════════════
+
+  /// Arranges unpositioned nodes in concentric rings using BFS from 'you'.
+  /// Tier 1 = directly connected to 'you' → ring at 280px
+  /// Tier 2 = connected to Tier 1 nodes  → ring at 500px
+  /// Tier N = further                     → ring at 280 + (N-1)*220
+  List<CanvasNode> _applyRadialLayout(
+    List<CanvasNode> nodes,
+    List<CanvasEdge> edges,
+    Set<String> needsLayout,
+  ) {
+    const center = Offset(5000, 5000);
+    const baseRadius = 280.0;
+    const ringGap = 220.0;
+    
+    // Build adjacency from edges (undirected for layout purposes)
+    final adj = <String, Set<String>>{};
+    for (final e in edges) {
+      adj.putIfAbsent(e.sourceId, () => {}).add(e.targetId);
+      adj.putIfAbsent(e.targetId, () => {}).add(e.sourceId);
+    }
+
+    // BFS from 'you' to determine tiers
+    final tiers = <String, int>{};
+    final queue = <String>['you'];
+    tiers['you'] = 0;
+    while (queue.isNotEmpty) {
+      final current = queue.removeAt(0);
+      final currentTier = tiers[current]!;
+      for (final neighbor in (adj[current] ?? <String>{})) {
+        if (!tiers.containsKey(neighbor) && neighbor != 'add') {
+          tiers[neighbor] = currentTier + 1;
+          queue.add(neighbor);
+        }
+      }
+    }
+
+    // Assign unconnected nodes to tier 1 (they'll be connected via auto-edges)
+    for (final node in nodes) {
+      if (!tiers.containsKey(node.id) && node.id != 'add' && needsLayout.contains(node.id)) {
+        tiers[node.id] = 1;
+      }
+    }
+
+    // Group by tier
+    final tierGroups = <int, List<String>>{};
+    for (final entry in tiers.entries) {
+      if (entry.value == 0) continue; // skip 'you'
+      tierGroups.putIfAbsent(entry.value, () => []).add(entry.key);
+    }
+
+    // Position each tier in a ring
+    final posMap = <String, Offset>{};
+    for (final entry in tierGroups.entries) {
+      final tier = entry.key;
+      final ids = entry.value;
+      final radius = baseRadius + (tier - 1) * ringGap;
+      final angleStep = (2 * pi) / ids.length;
+      // Start from top (-pi/2) and go clockwise
+      const startAngle = -pi / 2;
+      for (int i = 0; i < ids.length; i++) {
+        final angle = startAngle + angleStep * i;
+        posMap[ids[i]] = Offset(
+          center.dx + radius * cos(angle),
+          center.dy + radius * sin(angle),
+        );
+      }
+    }
+
+    // Place 'add' node to the right of 'you'
+    posMap['add'] = Offset(center.dx + 160, center.dy);
+
+    // Apply positions to nodes that need layout
+    return nodes.map((n) {
+      if (needsLayout.contains(n.id) && posMap.containsKey(n.id)) {
+        return n.copyWith(position: posMap[n.id]);
+      }
+      if (n.id == 'add' && posMap.containsKey('add')) {
+        return n.copyWith(position: posMap['add']);
+      }
+      return n;
+    }).toList();
+  }
+
+  /// Push apart any two nodes closer than minDistance.
+  List<CanvasNode> _resolveCollisions(List<CanvasNode> nodes, {double minDistance = 120.0}) {
+    final positions = {for (final n in nodes) n.id: n.position};
+    const iterations = 5;
+    for (int iter = 0; iter < iterations; iter++) {
+      for (int i = 0; i < nodes.length; i++) {
+        for (int j = i + 1; j < nodes.length; j++) {
+          final a = nodes[i].id;
+          final b = nodes[j].id;
+          // Don't push 'you' — it's the anchor
+          if (a == 'you' || b == 'you') continue;
+          final pa = positions[a]!;
+          final pb = positions[b]!;
+          final dx = pb.dx - pa.dx;
+          final dy = pb.dy - pa.dy;
+          final dist = sqrt(dx * dx + dy * dy);
+          if (dist < minDistance && dist > 0) {
+            final overlap = (minDistance - dist) / 2;
+            final nx = dx / dist;
+            final ny = dy / dist;
+            positions[a] = Offset(pa.dx - nx * overlap, pa.dy - ny * overlap);
+            positions[b] = Offset(pb.dx + nx * overlap, pb.dy + ny * overlap);
+          }
+        }
+      }
+    }
+    return nodes.map((n) => n.copyWith(position: positions[n.id])).toList();
+  }
+
+  /// Re-run layout on all DB nodes (triggered by auto-organize button).
+  void autoOrganize() {
+    final dbNodeIds = state.nodes
+        .where((n) => n.id != 'you' && n.id != 'add')
+        .map((n) => n.id)
+        .toSet();
+    var organized = _applyRadialLayout(state.nodes, state.edges, dbNodeIds);
+    organized = _resolveCollisions(organized);
+    state = state.copyWith(nodes: organized);
+    // Save new positions for all DB nodes
+    for (final n in organized) {
+      if (isValidUuid(n.id)) {
+        saveNodePosition(n.id, n.position);
+      }
+    }
+  }
+
   void _handleRealtimeUpdate(PostgresChangePayload payload) {
     if (payload.eventType == PostgresChangeEvent.insert || payload.eventType == PostgresChangeEvent.update) {
       final data = payload.newRecord;
@@ -241,6 +456,8 @@ class CanvasNotifier extends Notifier<CanvasState> {
         isDarkNode: isDark,
         heartbeatConfidence: hbConf,
         lastHeartbeatAt: data['last_heartbeat_at']?.toString(),
+        abstractedPayload: data['abstracted_payload'],
+        cascadeDelayHours: (data['cascade_delay_hours'] as num?)?.toDouble(),
       );
 
       final exists = state.nodes.any((n) => n.id == id);
@@ -381,35 +598,28 @@ class CanvasNotifier extends Notifier<CanvasState> {
   }
 
   /// Batch-add nodes and edges from an Omni Ingestion API response.
-  /// Positions new nodes in a radial layout around 'You' if ui_x/ui_y absent.
+  /// Uses hierarchical radial layout and auto-connects to 'You'.
   void addNodesFromIngestion(
     List<Map<String, dynamic>> rawNodes,
     List<Map<String, dynamic>> rawEdges,
   ) {
-    final youNode = state.nodes.where((n) => n.id == 'you').firstOrNull;
-    final center = youNode?.position ?? const Offset(5000, 5000);
-    final rng = Random();
     final existingIds = state.nodes.map((n) => n.id).toSet();
 
     final newNodes = <CanvasNode>[];
+    final newNodeIds = <String>{};
     for (int i = 0; i < rawNodes.length; i++) {
       final n = rawNodes[i];
       final id = (n['id'] ?? n['node_id'] ?? '').toString();
       if (id.isEmpty || existingIds.contains(id)) continue;
 
-      // Radial layout: spread around 'You' in a circle
-      final angle = (2 * pi * i) / rawNodes.length;
-      final radius = 180.0 + rng.nextDouble() * 40;
-      final x = center.dx + radius * cos(angle);
-      final y = center.dy + radius * sin(angle);
-
       newNodes.add(CanvasNode(
         id: id,
         label: n['name'] ?? 'Node',
         type: _parseNodeType(n['type'] ?? n['node_type']),
-        status: NodeStatus.pending, // Always start as pending per SRS lifecycle
-        position: Offset(x, y),
+        status: NodeStatus.pending,
+        position: const Offset(5000, 5000), // Placeholder; layout will fix
       ));
+      newNodeIds.add(id);
     }
 
     final newEdges = <CanvasEdge>[];
@@ -424,12 +634,28 @@ class CanvasNotifier extends Notifier<CanvasState> {
       ));
     }
 
-    if (newNodes.isNotEmpty || newEdges.isNotEmpty) {
-      state = state.copyWith(
-        nodes: [...state.nodes, ...newNodes],
-        edges: [...state.edges, ...newEdges],
-      );
+    if (newNodes.isEmpty && newEdges.isEmpty) return;
+
+    var mergedNodes = [...state.nodes, ...newNodes];
+    var mergedEdges = [...state.edges, ...newEdges];
+
+    // Auto-connect root nodes to 'you'
+    final allTargetIds = mergedEdges.map((e) => e.targetId).toSet();
+    for (final node in newNodes) {
+      if (!allTargetIds.contains(node.id)) {
+        final synEdgeId = 'auto-you-${node.id}';
+        mergedEdges.add(CanvasEdge(id: synEdgeId, sourceId: 'you', targetId: node.id));
+      }
     }
+
+    // Apply layout to new nodes only
+    mergedNodes = _applyRadialLayout(mergedNodes, mergedEdges, newNodeIds);
+    mergedNodes = _resolveCollisions(mergedNodes);
+
+    state = state.copyWith(
+      nodes: mergedNodes,
+      edges: mergedEdges,
+    );
   }
 
   void selectNode(String? id) {

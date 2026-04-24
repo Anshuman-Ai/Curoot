@@ -27,6 +27,8 @@ from app.models.disruption import (
 )
 from app.services.geo_intersect import GeoIntersectEngine
 from app.services.webhooks import AlertBroadcaster
+from app.services.abstraction_engine import abstraction_engine
+from app.services.tradeoffs_engine import insights_engine
 from app.utils.rate_limiter import rate_limiter
 
 logger = logging.getLogger(__name__)
@@ -110,6 +112,21 @@ class DisruptionService:
                     alert_id = await self.write_disruption_alert(disruption, affected, org_id)
                     await self.broadcast_alert(alert_id, org_id)
                     alert_ids.append(alert_id)
+                    
+                    # Update status and trigger downstream abstractions & trade-offs
+                    for asset in affected:
+                        if asset.asset_type == "node":
+                            # Auto-update node status to delayed
+                            supabase.table("supply_chain_nodes").update({"status": "delayed"}).eq("id", str(asset.asset_id)).execute()
+                            
+                            # Push abstracted alert to downstream partners
+                            await abstraction_engine.propagate_to_downstream(
+                                asset.asset_id, org_id, disruption.model_dump()
+                            )
+                            
+                            # Auto-trigger trade-off suggestions
+                            suggestions = await insights_engine.generate_reroute_suggestion(asset.asset_id, org_id)
+                            await insights_engine.push_insight_to_canvas(asset.asset_id, org_id, suggestions)
                 except Exception as exc:  # noqa: BLE001
                     logger.error(
                         "Error processing disruption %s: %s", disruption.id, exc,
