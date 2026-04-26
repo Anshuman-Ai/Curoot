@@ -89,6 +89,12 @@ class DisruptionService:
         for node in nodes:
             node_id = UUID(node["id"])
             location = node.get("location") or {}
+            if isinstance(location, str):
+                import json
+                try:
+                    location = json.loads(location)
+                except Exception:
+                    location = {}
             # location is stored as GeoJSON Point: {"type":"Point","coordinates":[lon,lat]}
             coords = location.get("coordinates", [])
             if len(coords) < 2:

@@ -396,6 +396,7 @@ class HeartbeatService:
                 "node_id": node_id,
                 "organization_id": org_id,
                 "event_type": "status_update",
+                "source": "supplier_chat",
                 "payload": {
                     "source": "supplier_chat",
                     "status": parsed.status,
@@ -409,16 +410,21 @@ class HeartbeatService:
             logger.warning("Telemetry insert failed (non-fatal): %s", exc)
 
         # 3d. INSERT communication_logs
-        supabase.table("communication_logs").insert({
-            "organization_id": org_id,
-            "target_node_id": node_id,
-            "message_id": msg_id,
-            "action": "supplier_heartbeat",
-            "metadata": {
-                "parsed_status": parsed.status,
-                "confidence": parsed.confidence,
-            },
-        }).execute()
+        import json
+        try:
+            supabase.table("communication_logs").insert({
+                "organization_id": org_id,
+                "initiated_by": org_id,  # Might fail FK constraint
+                "target_node_id": node_id,
+                "message_id": msg_id,
+                "channel": "internal_message",
+                "external_ref": json.dumps({
+                    "parsed_status": parsed.status,
+                    "confidence": parsed.confidence,
+                }),
+            }).execute()
+        except APIError as exc:
+            logger.warning("Communication log insert failed (non-fatal): %s", exc)
 
         # Step 4: Broadcast (existing Realtime infrastructure handles node
         # updates automatically via the supply_chain_nodes subscription;
@@ -502,13 +508,18 @@ class HeartbeatService:
             }).execute()
 
             # Log
-            supabase.table("communication_logs").insert({
-                "organization_id": org_id,
-                "target_node_id": node_id,
-                "message_id": msg_id,
-                "action": "oem_dispatch",
-                "metadata": {"message_preview": message_text[:100]},
-            }).execute()
+            import json
+            try:
+                supabase.table("communication_logs").insert({
+                    "organization_id": org_id,
+                    "initiated_by": org_id,  # Might fail FK constraint
+                    "target_node_id": node_id,
+                    "message_id": msg_id,
+                    "channel": "internal_message",
+                    "external_ref": json.dumps({"message_preview": message_text[:100]}),
+                }).execute()
+            except APIError as exc:
+                logger.warning("Communication log insert failed (non-fatal): %s", exc)
 
             message_ids.append(msg_id)
 

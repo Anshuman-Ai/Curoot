@@ -162,7 +162,7 @@ async def get_tradeoff(
         org_id=UUID(row["organization_id"]),
         current_node_id=UUID(row["current_node_id"]),
         alternative_node_id=UUID(row["alternative_node_id"]),
-        disruption_alert_id=UUID(row["disruption_alert_id"]),
+        disruption_alert_id=UUID(row["disruption_alert_id"]) if row.get("disruption_alert_id") else None,
         metrics=metrics,
         overall_recommendation=row.get("overall_recommendation", "investigate"),
         recommendation_confidence=float(row.get("recommendation_confidence", 0.5)),

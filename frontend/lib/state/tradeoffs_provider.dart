@@ -34,9 +34,8 @@ final tradeoffProvider = FutureProvider.family<TradeoffAnalysisResponse, String>
       currentNodeId: currentUuid,
       alternativeNodeId: altUuid,
       orgId: kFrontendDefaultOrgId,
-      // Use a fixed sentinel alert ID. In production, the real alert UUID
-      // is passed in from the disruption broadcast payload.
-      disruptionAlertId: '00000000-0000-0000-0000-000000000001',
+      // disruptionAlertId is null when no real alert exists.
+      // In production, the real alert UUID is passed from the disruption broadcast.
     );
 
     return apiClient.computeTradeoffs(request);

@@ -2,22 +2,25 @@ class TradeoffRequest {
   final String currentNodeId;
   final String alternativeNodeId;
   final String orgId;
-  final String disruptionAlertId;
+  final String? disruptionAlertId;
 
   TradeoffRequest({
     required this.currentNodeId,
     required this.alternativeNodeId,
     required this.orgId,
-    required this.disruptionAlertId,
+    this.disruptionAlertId,
   });
 
   Map<String, dynamic> toJson() {
-    return {
+    final map = <String, dynamic>{
       'current_node_id': currentNodeId,
       'alternative_node_id': alternativeNodeId,
       'org_id': orgId,
-      'disruption_alert_id': disruptionAlertId,
     };
+    if (disruptionAlertId != null) {
+      map['disruption_alert_id'] = disruptionAlertId;
+    }
+    return map;
   }
 }
 
@@ -55,7 +58,7 @@ class TradeoffAnalysisResponse {
   final String orgId;
   final String currentNodeId;
   final String alternativeNodeId;
-  final String disruptionAlertId;
+  final String? disruptionAlertId;
   final List<MetricResult> metrics;
   final String overallRecommendation;
   final double recommendationConfidence;
@@ -65,7 +68,7 @@ class TradeoffAnalysisResponse {
     required this.orgId,
     required this.currentNodeId,
     required this.alternativeNodeId,
-    required this.disruptionAlertId,
+    this.disruptionAlertId,
     required this.metrics,
     required this.overallRecommendation,
     required this.recommendationConfidence,
@@ -94,7 +97,6 @@ class TradeoffAnalysisResponse {
       orgId: '00000000-0000-0000-0000-000000000000',
       currentNodeId: currentNodeId,
       alternativeNodeId: alternativeNodeId,
-      disruptionAlertId: '00000000-0000-0000-0000-000000000000',
       metrics: [],
       overallRecommendation: 'investigate',
       recommendationConfidence: 0.0,

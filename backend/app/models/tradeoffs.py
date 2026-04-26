@@ -17,7 +17,7 @@ class TradeoffRequest(BaseModel):
     current_node_id: UUID
     alternative_node_id: UUID
     org_id: UUID
-    disruption_alert_id: UUID
+    disruption_alert_id: Optional[UUID] = None
 
 
 class MetricResult(BaseModel):
@@ -38,7 +38,7 @@ class TradeoffAnalysisResponse(BaseModel):
     org_id: UUID
     current_node_id: UUID
     alternative_node_id: UUID
-    disruption_alert_id: UUID
+    disruption_alert_id: Optional[UUID] = None
     metrics: List[MetricResult]  # Exactly 4 items
     overall_recommendation: Literal["switch", "stay", "investigate"]
     recommendation_confidence: float  # 0.0 – 1.0

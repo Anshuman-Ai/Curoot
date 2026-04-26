@@ -205,7 +205,7 @@ class TradeoffsEngine:
         current_node_id: UUID,
         alternative_node_id: UUID,
         org_id: UUID,
-        disruption_alert_id: UUID,
+        disruption_alert_id: Optional[UUID] = None,
     ) -> TradeoffAnalysisResponse:
         """
         Step 1: Fetch both nodes.
@@ -259,12 +259,13 @@ class TradeoffsEngine:
             "organization_id": str(org_id),
             "current_node_id": str(current_node_id),
             "alternative_node_id": str(alternative_node_id),
-            "disruption_alert_id": str(disruption_alert_id),
             "initiated_by": str(org_id),
             "overall_recommendation": recommendation,
             "recommendation_confidence": confidence,
             "created_at": created_at.isoformat(),
         }
+        if disruption_alert_id is not None:
+            analysis_row["disruption_alert_id"] = str(disruption_alert_id)
         supabase.table("tradeoff_analyses").insert(analysis_row).execute()
 
         metric_rows = [
