@@ -2,7 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../canvas/add_node_panel.dart';
 import '../settings/settings_page.dart';
+import '../profile/profile_page.dart';
 import 'omni_ingestion_panel.dart';
+import 'search_panel.dart';
+import '../../state/canvas_provider.dart';
 
 enum LeftPanelTab { none, profile, home, upload, addNode, search, settings }
 
@@ -131,15 +134,15 @@ class LeftPanel extends ConsumerWidget {
   Widget _buildExpandedContent(LeftPanelTab tab) {
     switch (tab) {
       case LeftPanelTab.profile:
-        return const _PanelPlaceholder(title: 'User Profile');
+        return const ProfilePage();
       case LeftPanelTab.home:
-        return const _PanelPlaceholder(title: 'Home');
+        return const SizedBox.shrink(); // Not used anymore as home closes panels
       case LeftPanelTab.upload:
         return const OmniIngestionPanel();
       case LeftPanelTab.addNode:
         return const AddNodePanel();
       case LeftPanelTab.search:
-        return const _PanelPlaceholder(title: 'Search');
+        return const SearchPanel();
       case LeftPanelTab.settings:
         return const _PanelPlaceholder(title: 'Settings');
       case LeftPanelTab.none:
@@ -168,6 +171,13 @@ class _TrayIcon extends ConsumerWidget {
       onTap: () {
         if (tab == LeftPanelTab.settings) {
           Navigator.of(context).push(MaterialPageRoute(builder: (_) => const SettingsPage()));
+          return;
+        }
+
+        if (tab == LeftPanelTab.home) {
+          // Home acts as a toggle to show the full canvas
+          ref.read(leftPanelTabProvider.notifier).setTab(LeftPanelTab.none);
+          ref.read(canvasProvider.notifier).selectNode(null);
           return;
         }
 

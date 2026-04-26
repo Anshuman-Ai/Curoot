@@ -94,27 +94,6 @@ class _MultiplayerCanvasState extends ConsumerState<MultiplayerCanvas>
     }
   }
 
-  void _searchNodes() {
-    final state = ref.read(canvasProvider);
-    if (state.nodes.isEmpty) return;
-
-    // Cycle/Dropdown to select a node (mocking search)
-    showMenu(
-      context: context,
-      position: const RelativeRect.fromLTRB(100, 100, 0, 0),
-      items: state.nodes.map((node) {
-        return PopupMenuItem(
-          value: node,
-          child: Text(node.label),
-        );
-      }).toList(),
-    ).then((selectedNode) {
-      if (selectedNode != null) {
-        _panToNode(selectedNode.position);
-      }
-    });
-  }
-
   @override
   Widget build(BuildContext context) {
     // Removed ref.watch(canvasProvider) from root to dramatically increase FPS when dragging nodes
@@ -249,26 +228,6 @@ class _MultiplayerCanvasState extends ConsumerState<MultiplayerCanvas>
                 children: [
                   const Icon(Icons.sensors, color: Colors.greenAccent),
                   const SizedBox(width: 16),
-
-                  // ── Search button ──────────────────────────────────
-                  Material(
-                    color: Colors.transparent,
-                    child: InkWell(
-                      onTap: _searchNodes,
-                      borderRadius: BorderRadius.circular(14),
-                      child: Container(
-                        width: 48,
-                        height: 48,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF22222A),
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                        child: const Icon(Icons.search,
-                            color: Colors.white70, size: 22),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
 
                   // ── Auto-organize button ──────────────────────────
                   Consumer(

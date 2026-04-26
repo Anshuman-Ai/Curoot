@@ -61,11 +61,18 @@ BoxDecoration _tileDecoration({Color? border}) => BoxDecoration(
 
 // ─────────────────────────────────────────────────────────────────────────────
 
-class RightPanel extends ConsumerWidget {
+class RightPanel extends ConsumerStatefulWidget {
   const RightPanel({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<RightPanel> createState() => _RightPanelState();
+}
+
+class _RightPanelState extends ConsumerState<RightPanel> {
+  bool _nodeDetailsExpanded = false;
+
+  @override
+  Widget build(BuildContext context) {
     final canvasState = ref.watch(canvasProvider);
     final selectedNodeId = canvasState.selectedNodeId;
 
@@ -82,6 +89,11 @@ class RightPanel extends ConsumerWidget {
         .where((n) => n.id != selectedNodeId && n.type != NodeType.add)
         .toList();
 
+    // Determine disruption state for this node
+    final hasAbstracted = selectedNode.abstractedPayload != null;
+    final hasAlerts = nodeAlerts.isNotEmpty;
+    final isDelayed = selectedNode.status == NodeStatus.delayed;
+
     return Container(
       width: 280,
       color: _kPanelBg,
@@ -91,72 +103,183 @@ class RightPanel extends ConsumerWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // ── NODE DETAILS CARD ─────────────────────────────────────────
+              // ── NODE DETAILS CARD (collapsible) ────────────────────────────
               _card(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    // Section header
-                    _sectionHeader('NODE DETAILS'),
+                    // Collapsible header
+                    InkWell(
+                      onTap: () => setState(() =>
+                          _nodeDetailsExpanded = !_nodeDetailsExpanded),
+                      borderRadius: BorderRadius.circular(8),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text('NODE DETAILS',
+                                style: _label(
+                                    size: 11,
+                                    w: FontWeight.w700,
+                                    spacing: 1.2,
+                                    color: Colors.white)),
+                            Flexible(
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                mainAxisAlignment: MainAxisAlignment.end,
+                                children: [
+                                  // Node name preview when collapsed
+                                  if (!_nodeDetailsExpanded)
+                                    Flexible(
+                                      child: Text(
+                                        selectedNode.label,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: _label(
+                                            size: 10,
+                                            w: FontWeight.w400,
+                                            spacing: 0,
+                                            color: Colors.white38),
+                                      ),
+                                    ),
+                                  const SizedBox(width: 6),
+                                  AnimatedRotation(
+                                    duration: const Duration(milliseconds: 200),
+                                    turns: _nodeDetailsExpanded ? 0.5 : 0.0,
+                                    child: const Icon(
+                                        Icons.keyboard_arrow_down,
+                                        color: Colors.white54,
+                                        size: 16),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+
+                    // Simple Expandable content
+                    if (_nodeDetailsExpanded) ...[
+                      const SizedBox(height: 12),
+                      const Divider(height: 1, color: _kDivider),
+                      const SizedBox(height: 16),
+
+                      // Node name chip
+                      _nodeChip(selectedNode.label),
+
+                      const SizedBox(height: 16),
+
+                      // Macro risk
+                      macroAsync.when(
+                        loading: () => _metricTile(
+                            icon: Icons.public,
+                            iconColor: Colors.white38,
+                            label: 'MACRO RISK',
+                            value: '...'),
+                        error: (_, __) => _metricTile(
+                            icon: Icons.public,
+                            iconColor: Colors.white38,
+                            label: 'MACRO RISK',
+                            value: 'N/A'),
+                        data: (signals) {
+                          final top =
+                              signals.isNotEmpty ? signals.first : null;
+                          return _metricTile(
+                            icon: Icons.public,
+                            iconColor: _riskColor(top?.riskLevel),
+                            label: 'MACRO RISK',
+                            value: (top?.riskLevel ?? 'LOW').toUpperCase(),
+                          );
+                        },
+                      ),
+
+                      const SizedBox(height: 10),
+
+                      // Carbon ESG
+                      _metricTile(
+                        icon: Icons.energy_savings_leaf_outlined,
+                        iconColor: _kTeal,
+                        label: 'CARBON ESG',
+                        value:
+                            '${(selectedNode.id.hashCode % 120) + 20}T CO2',
+                      ),
+
+                      const SizedBox(height: 10),
+
+                      // Reliability bar
+                      _reliabilityTile(
+                          (selectedNode.id.hashCode % 30) + 70),
+                    ],
+                  ],
+                ),
+              ),
+
+              // ── REAL-TIME DISRUPTION CARD ──────────────────────────────────
+              const SizedBox(height: 16),
+              _card(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _sectionHeader('REAL-TIME DISRUPTION'),
                     const SizedBox(height: 12),
                     const Divider(height: 1, color: _kDivider),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 14),
 
-                    // Node name chip
-                    _nodeChip(selectedNode.label),
-
-                    // Disruption alerts
-                    if (selectedNode.abstractedPayload != null) ...[
-                      const SizedBox(height: 16),
-                      _abstractedAlertBox(selectedNode.abstractedPayload!),
-                    ] else if (nodeAlerts.isNotEmpty) ...[
-                      const SizedBox(height: 16),
-                      ...nodeAlerts.map((a) => _alertBox(a)),
-                    ] else if (selectedNode.status == NodeStatus.delayed) ...[
-                      const SizedBox(height: 16),
-                      _staticAlertBox(),
-                    ],
-
-                    const SizedBox(height: 16),
-
-                    // Macro risk
-                    macroAsync.when(
-                      loading: () => _metricTile(
-                          icon: Icons.public,
-                          iconColor: Colors.white38,
-                          label: 'MACRO RISK',
-                          value: '…'),
-                      error: (_, __) => _metricTile(
-                          icon: Icons.public,
-                          iconColor: Colors.white38,
-                          label: 'MACRO RISK',
-                          value: 'N/A'),
-                      data: (signals) {
-                        final top =
-                            signals.isNotEmpty ? signals.first : null;
-                        return _metricTile(
-                          icon: Icons.public,
-                          iconColor: _riskColor(top?.riskLevel),
-                          label: 'MACRO RISK',
-                          value: top?.riskLevel.toUpperCase() ?? 'LOW',
-                        );
-                      },
-                    ),
-
-                    const SizedBox(height: 10),
-
-                    // Carbon ESG (Deterministic mock based on node ID)
-                    _metricTile(
-                      icon: Icons.energy_savings_leaf_outlined,
-                      iconColor: _kTeal,
-                      label: 'CARBON ESG',
-                      value: '${(selectedNode.id.hashCode % 120) + 20}T CO₂',
-                    ),
-
-                    const SizedBox(height: 10),
-
-                    // Reliability bar (Deterministic mock based on node ID)
-                    _reliabilityTile((selectedNode.id.hashCode % 30) + 70),
+                    if (hasAbstracted)
+                      _abstractedAlertBox(selectedNode.abstractedPayload!)
+                    else if (hasAlerts)
+                      ...nodeAlerts.map((a) => _alertBox(a))
+                    else if (isDelayed)
+                      _staticAlertBox()
+                    else
+                      // ── All Clear indicator ──
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF1A2A1A),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                              color: _kTeal.withValues(alpha: 0.3), width: 1),
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 36,
+                              height: 36,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: _kTeal.withValues(alpha: 0.15),
+                                border: Border.all(
+                                    color: _kTeal.withValues(alpha: 0.4),
+                                    width: 1),
+                              ),
+                              child: const Icon(Icons.check_circle_outline,
+                                  color: _kTeal, size: 20),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text('ALL CLEAR',
+                                      style: _label(
+                                          size: 11,
+                                          w: FontWeight.w700,
+                                          spacing: 0.6,
+                                          color: _kTeal)),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    'No disruptions detected near this node.',
+                                    style: _body(
+                                        size: 11, color: Colors.white54),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                   ],
                 ),
               ),
