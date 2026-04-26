@@ -88,6 +88,9 @@ class ApiClient {
     required String query,
     required String orgId,
     double radius = 50.0,
+    String? country,
+    String? state,
+    String? city,
   }) async {
     final response = await http.post(
       Uri.parse('$baseUrl/discovery/search'),
@@ -96,6 +99,9 @@ class ApiClient {
         'query': query,
         'organization_id': orgId,
         'radius': radius,
+        if (country != null && country.isNotEmpty) 'country': country,
+        if (state != null && state.isNotEmpty) 'state': state,
+        if (city != null && city.isNotEmpty) 'city': city,
       }),
     );
     if (response.statusCode == 200) {

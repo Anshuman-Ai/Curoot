@@ -7,6 +7,9 @@ class DiscoverySearchRequest(BaseModel):
     lat: Optional[float] = None
     lon: Optional[float] = None
     organization_id: str
+    country: Optional[str] = None
+    state: Optional[str] = None
+    city: Optional[str] = None
 
 class DiscoveryNode(BaseModel):
     id: str

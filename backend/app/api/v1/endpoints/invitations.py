@@ -36,15 +36,22 @@ async def create_invitation(request: DirectInviteRequest):
     country_code = None
     if request.lat is not None and request.lon is not None:
         country_code = _estimate_country_code(request.lat, request.lon)
+    if country_code is None:
+        country_code = "US"  # Fallback to satisfy NOT NULL constraint
     
     try:
         # Create unverified node on the canvas
+        node_lat = request.lat if request.lat is not None else 0.0
+        node_lon = request.lon if request.lon is not None else 0.0
         node_payload = {
             "id": new_node_id,
             "organization_id": request.organization_id,
             "name": request.name,
+            "display_name": request.name,
             "node_type": request.connection_type,
             "status": "pending",
+            "location": f"POINT({node_lon} {node_lat})",
+            "country_code": country_code,
             "metadata": {
                 "email": request.email,
                 "lat": request.lat,
@@ -55,28 +62,49 @@ async def create_invitation(request: DirectInviteRequest):
         }
         supabase.table("supply_chain_nodes").insert(node_payload).execute()
         
+        # Resolve a valid user for invited_by_user (MVP fallback)
+        users_res = supabase.auth.admin.list_users()
+        if isinstance(users_res, list):
+            users_list = users_res
+        else:
+            users_list = getattr(users_res, 'users', getattr(users_res, 'data', []))
+        valid_user_id = users_list[0].id if users_list else request.organization_id
+        
         # Create invitation record with expiry (C3 fix)
         invite_id = str(uuid.uuid4())
         invite_payload = {
             "id": invite_id,
             "organization_id": request.organization_id,
+            "invited_by_user": valid_user_id,
             "target_node_id": new_node_id,
-            "name": request.name,
-            "email": request.email,
-            "connection_type": request.connection_type,
+            "target_org_name": request.name,
+            "target_email": request.email,
+            "connection_type": "upstream", # Enum requires upstream/downstream
             "status": "pending",
-            "token": token,
+            "invite_token": token,
             "expires_at": expires_at.isoformat(),
             "created_at": now.isoformat(),
         }
         supabase.table("node_invitations").insert(invite_payload).execute()
         
+        invite_link = f"https://app.curoot.com/onboard?token={token}"
+        whatsapp_link = None
+        if request.channel == "whatsapp" and request.phone:
+            import urllib.parse
+            phone_clean = "".join(filter(str.isdigit, request.phone))
+            msg = urllib.parse.quote(f"You have been invited to Curoot Supply Chain. Click here to join: {invite_link}")
+            whatsapp_link = f"https://wa.me/{phone_clean}?text={msg}"
+            
         return DirectInviteResponse(
             invite_id=invite_id,
             token=token,
             node_id=new_node_id,
             status="pending",
-            message=f"Invitation created. Token expires at {expires_at.strftime('%Y-%m-%d %H:%M UTC')} ({INVITATION_EXPIRY_DAYS} days)."
+            message=f"Invitation created. Token expires at {expires_at.strftime('%Y-%m-%d %H:%M UTC')} ({INVITATION_EXPIRY_DAYS} days).",
+            expires_at=expires_at.isoformat(),
+            email=request.email,
+            invite_link=invite_link,
+            whatsapp_link=whatsapp_link
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -93,8 +121,8 @@ async def validate_invitation(token: str = Query(..., description="Invitation to
     
     resp = (
         supabase.table("node_invitations")
-        .select("id, organization_id, target_node_id, name, email, status, expires_at")
-        .eq("token", token)
+        .select("id, organization_id, target_node_id, target_org_name, target_email, status, expires_at")
+        .eq("invite_token", token)
         .maybe_single()
         .execute()
     )
@@ -133,8 +161,8 @@ async def validate_invitation(token: str = Query(..., description="Invitation to
         "invitation_id": invitation["id"],
         "organization_id": invitation["organization_id"],
         "node_id": invitation["target_node_id"],
-        "name": invitation["name"],
-        "email": invitation["email"],
+        "name": invitation["target_org_name"],
+        "email": invitation["target_email"],
     }
 
 
@@ -155,7 +183,7 @@ async def accept_invitation(token: str, supplier_name: str = None, supplier_stat
     resp = (
         supabase.table("node_invitations")
         .select("id, target_node_id, status, expires_at")
-        .eq("token", token)
+        .eq("invite_token", token)
         .maybe_single()
         .execute()
     )

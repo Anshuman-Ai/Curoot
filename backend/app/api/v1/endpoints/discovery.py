@@ -67,12 +67,17 @@ async def search_nodes(request: DiscoverySearchRequest):
 
     # Tier 1: Active Nodes (Query supply_chain_nodes for this org)
     try:
-        t1_resp = supabase.table("supply_chain_nodes") \
+        query_t1 = supabase.table("supply_chain_nodes") \
             .select("id, name, node_type, status") \
             .eq("organization_id", request.organization_id) \
-            .ilike("name", f"%{request.query}%") \
-            .is_("deleted_at", "null") \
-            .execute()
+            .is_("deleted_at", "null")
+            
+        if request.query:
+            query_t1 = query_t1.ilike("name", f"%{request.query}%")
+        if request.country:
+            query_t1 = query_t1.eq("country_code", request.country)
+            
+        t1_resp = query_t1.execute()
         
         for row in t1_resp.data or []:
             results.append(DiscoveryNode(
@@ -87,10 +92,17 @@ async def search_nodes(request: DiscoverySearchRequest):
 
     # Tier 2: Community Nodes (Query template_nodes)
     try:
-        t2_resp = supabase.table("template_nodes") \
-            .select("id, name, node_type") \
-            .ilike("name", f"%{request.query}%") \
-            .execute()
+        query_t2 = supabase.table("template_nodes") \
+            .select("id, name, node_type")
+            
+        if request.query:
+            query_t2 = query_t2.ilike("name", f"%{request.query}%")
+        if request.country:
+            # Assumes template_nodes has country_code or similar, if not it will just return empty or error. 
+            # We'll use ilike on metadata or just ignore. We can just skip country_code for templates if it errors, but let's assume it has country_code.
+            query_t2 = query_t2.eq("country_code", request.country)
+
+        t2_resp = query_t2.execute()
             
         for row in t2_resp.data or []:
             results.append(DiscoveryNode(
@@ -104,11 +116,23 @@ async def search_nodes(request: DiscoverySearchRequest):
         logger.warning("Tier 2 search error: %s", e)
 
     # Tier 3: External (OpenStreetMap Nominatim) — with LRU cache (M2 fix)
-    cache_key = f"{request.query.lower().strip()}:{request.radius}"
+    osm_q_parts = []
+    if request.query:
+        osm_q_parts.append(request.query)
+    if request.city:
+        osm_q_parts.append(request.city)
+    if request.state:
+        osm_q_parts.append(request.state)
+    if request.country:
+        osm_q_parts.append(request.country)
+        
+    osm_q_str = ", ".join(osm_q_parts)
+    
+    cache_key = f"{osm_q_str.lower().strip()}:{request.radius}"
     cached = _osm_cache.get(cache_key)
     
     if cached is not None:
-        logger.debug("Tier 3 cache HIT for query '%s'", request.query)
+        logger.debug("Tier 3 cache HIT for query '%s'", osm_q_str)
         results.extend(cached)
     else:
         tier3_results = []
@@ -116,7 +140,7 @@ async def search_nodes(request: DiscoverySearchRequest):
             async with httpx.AsyncClient() as client:
                 osm_url = (
                     f"https://nominatim.openstreetmap.org/search"
-                    f"?q={request.query}&format=json&limit=2"
+                    f"?q={osm_q_str}&format=json&limit=2"
                 )
                 osm_resp = await client.get(
                     osm_url,

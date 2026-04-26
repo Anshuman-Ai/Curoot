@@ -20,6 +20,9 @@ class _AddNodePanelState extends ConsumerState<AddNodePanel>
 
   // Search tab
   final _searchController = TextEditingController();
+  final _countryController = TextEditingController();
+  final _stateController = TextEditingController();
+  final _cityController = TextEditingController();
   double _radius = 50.0;
   List<dynamic> _searchResults = [];
   bool _isSearching = false;
@@ -47,6 +50,9 @@ class _AddNodePanelState extends ConsumerState<AddNodePanel>
   void dispose() {
     _tabController.dispose();
     _searchController.dispose();
+    _countryController.dispose();
+    _stateController.dispose();
+    _cityController.dispose();
     _nameCtrl.dispose();
     _emailCtrl.dispose();
     _phoneCtrl.dispose();
@@ -65,6 +71,9 @@ class _AddNodePanelState extends ConsumerState<AddNodePanel>
             query: _searchController.text,
             orgId: kFrontendDefaultOrgId,
             radius: _radius, // ✅ Radius now wired
+            country: _countryController.text,
+            state: _stateController.text,
+            city: _cityController.text,
           );
       setState(() => _searchResults = response['results'] ?? []);
     } catch (e) {
@@ -256,6 +265,75 @@ class _AddNodePanelState extends ConsumerState<AddNodePanel>
                 borderRadius: BorderRadius.circular(8),
                 borderSide: const BorderSide(color: _teal)),
           ),
+        ),
+        const SizedBox(height: 10),
+
+        // Location filters
+        Row(
+          children: [
+            Expanded(
+              child: TextField(
+                controller: _countryController,
+                style: const TextStyle(color: Colors.white, fontSize: 13),
+                onSubmitted: (_) => _performSearch(),
+                decoration: InputDecoration(
+                  hintText: 'Country (e.g. US, CN)',
+                  hintStyle: const TextStyle(color: Colors.white38, fontSize: 12),
+                  filled: true,
+                  fillColor: const Color(0xFF13131A),
+                  enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: const BorderSide(color: Colors.white12)),
+                  focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: const BorderSide(color: _teal)),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: TextField(
+                controller: _stateController,
+                style: const TextStyle(color: Colors.white, fontSize: 13),
+                onSubmitted: (_) => _performSearch(),
+                decoration: InputDecoration(
+                  hintText: 'State',
+                  hintStyle: const TextStyle(color: Colors.white38, fontSize: 12),
+                  filled: true,
+                  fillColor: const Color(0xFF13131A),
+                  enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: const BorderSide(color: Colors.white12)),
+                  focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: const BorderSide(color: _teal)),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: TextField(
+                controller: _cityController,
+                style: const TextStyle(color: Colors.white, fontSize: 13),
+                onSubmitted: (_) => _performSearch(),
+                decoration: InputDecoration(
+                  hintText: 'City',
+                  hintStyle: const TextStyle(color: Colors.white38, fontSize: 12),
+                  filled: true,
+                  fillColor: const Color(0xFF13131A),
+                  enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: const BorderSide(color: Colors.white12)),
+                  focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: const BorderSide(color: _teal)),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                ),
+              ),
+            ),
+          ],
         ),
         const SizedBox(height: 10),
 
