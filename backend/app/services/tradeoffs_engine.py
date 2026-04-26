@@ -260,6 +260,7 @@ class TradeoffsEngine:
             "current_node_id": str(current_node_id),
             "alternative_node_id": str(alternative_node_id),
             "disruption_alert_id": str(disruption_alert_id),
+            "initiated_by": str(org_id),
             "overall_recommendation": recommendation,
             "recommendation_confidence": confidence,
             "created_at": created_at.isoformat(),
@@ -443,7 +444,13 @@ tradeoffs_engine = TradeoffsEngine()
 
 def _extract_coords(node: Dict[str, Any]) -> Tuple[float, float]:
     """Return (lat, lon) from a supply_chain_node record's GeoJSON location field."""
+    import json
     loc = node.get("location") or {}
+    if isinstance(loc, str):
+        try:
+            loc = json.loads(loc)
+        except Exception:
+            loc = {}
     coords = loc.get("coordinates", [])
     if len(coords) >= 2:
         return float(coords[1]), float(coords[0])  # GeoJSON is [lon, lat]
@@ -547,11 +554,12 @@ def _calc_carbon_delta_kg(
 async def _avg_telemetry_cost(supabase: Any, node_id: UUID) -> float:
     """Average cost_usd from telemetry_events for the past 90 days."""
     try:
+        ninety_days_ago = (datetime.now(timezone.utc) - __import__('datetime').timedelta(days=90)).isoformat()
         resp = (
             supabase.table("telemetry_events")
             .select("cost_usd")
             .eq("node_id", str(node_id))
-            .gte("recorded_at", "now() - interval '90 days'")
+            .gte("recorded_at", ninety_days_ago)
             .execute()
         )
         data = getattr(resp, "data", []) or []
@@ -564,12 +572,13 @@ async def _avg_telemetry_cost(supabase: Any, node_id: UUID) -> float:
 async def _on_time_rate(supabase: Any, node_id: UUID, org_id: UUID) -> float:
     """on_time_rate = COUNT(status='on_time') / COUNT(*) × 100 for last 90 days."""
     try:
+        ninety_days_ago = (datetime.now(timezone.utc) - __import__('datetime').timedelta(days=90)).isoformat()
         all_resp = (
             supabase.table("telemetry_events")
             .select("id, status", count="exact")
             .eq("node_id", str(node_id))
             .eq("organization_id", str(org_id))
-            .gte("recorded_at", "now() - interval '90 days'")
+            .gte("recorded_at", ninety_days_ago)
             .execute()
         )
         all_data = getattr(all_resp, "data", []) or []
@@ -583,7 +592,7 @@ async def _on_time_rate(supabase: Any, node_id: UUID, org_id: UUID) -> float:
             .eq("node_id", str(node_id))
             .eq("organization_id", str(org_id))
             .eq("status", "on_time")
-            .gte("recorded_at", "now() - interval '90 days'")
+            .gte("recorded_at", ninety_days_ago)
             .execute()
         )
         on_time_data = getattr(on_time_resp, "data", []) or []

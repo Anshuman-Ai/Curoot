@@ -145,18 +145,18 @@ class RightPanel extends ConsumerWidget {
 
                     const SizedBox(height: 10),
 
-                    // Carbon ESG
+                    // Carbon ESG (Deterministic mock based on node ID)
                     _metricTile(
                       icon: Icons.energy_savings_leaf_outlined,
                       iconColor: _kTeal,
                       label: 'CARBON ESG',
-                      value: '84T CO₂',
+                      value: '${(selectedNode.id.hashCode % 120) + 20}T CO₂',
                     ),
 
                     const SizedBox(height: 10),
 
-                    // Reliability bar
-                    _reliabilityTile(47),
+                    // Reliability bar (Deterministic mock based on node ID)
+                    _reliabilityTile((selectedNode.id.hashCode % 30) + 70),
                   ],
                 ),
               ),
@@ -484,12 +484,9 @@ class _TradeoffNodeRowState extends ConsumerState<_TradeoffNodeRow> {
 
   @override
   Widget build(BuildContext context) {
-    final params = {
-      'current_node_id': widget.selectedNodeId,
-      'alternative_node_id': widget.alternativeNode.id,
-    };
+    final combinedKey = '${widget.selectedNodeId}||${widget.alternativeNode.id}';
     final tradeoffAsync =
-        _expanded ? ref.watch(tradeoffProvider(params)) : null;
+        _expanded ? ref.watch(tradeoffProvider(combinedKey)) : null;
 
     final isActive = widget.alternativeNode.status == NodeStatus.active;
     final iconColor = isActive ? _kTeal : Colors.white54;
@@ -609,12 +606,15 @@ class _TradeoffNodeRowState extends ConsumerState<_TradeoffNodeRow> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('RECOMMENDATION',
-                  style: _label(
-                      size: 10,
-                      w: FontWeight.w600,
-                      spacing: 0.8,
-                      color: Colors.white38)),
+              Flexible(
+                child: Text('RECOMMENDATION',
+                    overflow: TextOverflow.ellipsis,
+                    style: _label(
+                        size: 10,
+                        w: FontWeight.w600,
+                        spacing: 0.8,
+                        color: Colors.white38)),
+              ),
               Container(
                 padding:
                     const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
@@ -656,12 +656,15 @@ class _TradeoffNodeRowState extends ConsumerState<_TradeoffNodeRow> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label,
-              style: _label(
-                  size: 12,
-                  w: FontWeight.w500,
-                  spacing: 0,
-                  color: Colors.white60)),
+          Flexible(
+            child: Text(label,
+                overflow: TextOverflow.ellipsis,
+                style: _label(
+                    size: 12,
+                    w: FontWeight.w500,
+                    spacing: 0,
+                    color: Colors.white60)),
+          ),
           Row(children: [
             Icon(
               metric.isImprovement

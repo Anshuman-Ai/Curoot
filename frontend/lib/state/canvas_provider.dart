@@ -570,8 +570,14 @@ class CanvasNotifier extends Notifier<CanvasState> {
 
   NodeType _parseNodeType(String? type) {
     switch (type?.toLowerCase()) {
-      case 'factory': return NodeType.factory;
+      case 'factory':
+      case 'warehouse':
+      case 'hub':
+      case 'distribution_center':
+      case 'distributor':
+        return NodeType.factory;
       case 'supplier': return NodeType.supplier;
+      case 'oem': return NodeType.oem;
       default: return NodeType.supplier;
     }
   }

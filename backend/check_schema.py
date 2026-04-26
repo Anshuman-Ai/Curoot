@@ -11,10 +11,11 @@ try:
         
     print("Definitions found:", list(data.get("definitions", {}).keys()))
     
-    if "ingestion_jobs" in data.get("definitions", {}):
-        print("ingestion_jobs properties:", list(data["definitions"]["ingestion_jobs"]["properties"].keys()))
-    else:
-        print("ingestion_jobs table NOT FOUND in PostgREST schema")
+    if "messages" in data.get("definitions", {}):
+        print("messages properties:", list(data["definitions"]["messages"]["properties"].keys()))
+    if "node_edges" in data.get("definitions", {}):
+        print("node_edges properties:", list(data["definitions"]["node_edges"]["properties"].keys()))
+        print("node_edges connection_type format:", data["definitions"]["node_edges"]["properties"].get("connection_type"))
         
 except Exception as e:
     print("Error:", e)

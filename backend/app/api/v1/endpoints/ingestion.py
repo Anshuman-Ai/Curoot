@@ -74,11 +74,13 @@ def _persist_extraction(
     for node in extraction.nodes:
         db_id = str(uuid.uuid4())
         node_id_map[node.node_id] = db_id
+        node.node_id = db_id
 
         row = {
             "id": db_id,
             "organization_id": org_id,
             "name": node.name,
+            "display_name": node.name,
             "node_type": node.type,
             "status": node.status,
             "location": f"POINT({node.location.lng} {node.location.lat})",
@@ -103,11 +105,15 @@ def _persist_extraction(
             )
             continue
 
+        edge.source_node_id = source_uuid
+        edge.target_node_id = target_uuid
+
         edge_row = {
             "id": str(uuid.uuid4()),
             "organization_id": org_id,
             "source_node_id": source_uuid,
             "target_node_id": target_uuid,
+            "connection_type": "upstream",
             "edge_type": edge.relationship_type,
             "metadata": {"label": edge.label or ""},
         }

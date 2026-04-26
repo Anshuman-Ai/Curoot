@@ -10,7 +10,9 @@ except Exception as e:
 
 # Try fetching a table to see if it exists
 try:
-    res = supabase.table('supply_chain_nodes').select('*').limit(1).execute()
-    print("Table select successful:", res)
+    res = supabase.table('magic_link_tokens').select('*, supply_chain_nodes(id, name, organization_id, organizations!fk_nodes_org(name))').limit(1).execute()
+    print("Table select successful:", res.data)
 except Exception as e:
+    import traceback
+    traceback.print_exc()
     print("Table select failed:", e)

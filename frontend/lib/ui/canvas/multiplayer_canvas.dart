@@ -196,6 +196,7 @@ class _MultiplayerCanvasState extends ConsumerState<MultiplayerCanvas>
                             const double widgetHeight = 90.0;
 
                             return Positioned(
+                              key: ValueKey(node.id),
                               left: node.position.dx - (widgetWidth / 2),
                               top: node.position.dy - (widgetHeight / 2),
                               child: NodeWidget(

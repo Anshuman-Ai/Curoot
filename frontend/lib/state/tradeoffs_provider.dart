@@ -8,11 +8,12 @@ import 'canvas_provider.dart';
 // Key: map of {current_node_id, alternative_node_id} (frontend string ids).
 // ---------------------------------------------------------------------------
 
-final tradeoffProvider = FutureProvider.family<TradeoffAnalysisResponse, Map<String, String>>(
-  (ref, params) async {
+final tradeoffProvider = FutureProvider.family<TradeoffAnalysisResponse, String>(
+  (ref, combinedKey) async {
     final apiClient = ref.read(apiClientProvider);
-    final currentNodeId  = params['current_node_id']!;
-    final alternativeNodeId = params['alternative_node_id']!;
+    final parts = combinedKey.split('||');
+    final currentNodeId  = parts[0];
+    final alternativeNodeId = parts[1];
 
     // Guard: only call backend if BOTH node IDs are real Supabase UUIDs.
     // Local nodes ('you', 'add') and ingestion-temp IDs ('EXTRACTED-NODE-01')

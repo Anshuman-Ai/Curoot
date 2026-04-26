@@ -50,13 +50,16 @@ async def generate_magic_links(
     base_url = str(request.base_url).rstrip("/")
     links = []
     for node_id in body.node_ids:
-        link = await heartbeat_service.generate_magic_link(
-            node_id=node_id,
-            org_id=body.organization_id,
-            expiry_days=body.expiry_days,
-            base_url=base_url,
-        )
-        links.append(link)
+        try:
+            link = await heartbeat_service.generate_magic_link(
+                node_id=node_id,
+                org_id=body.organization_id,
+                expiry_days=body.expiry_days,
+                base_url=base_url,
+            )
+            links.append(link)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc))
     return MagicLinkBatchResponse(links=links)
 
 

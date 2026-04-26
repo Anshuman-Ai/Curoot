@@ -162,7 +162,7 @@ class HeartbeatService:
         try:
             resp = (
                 supabase.table("magic_link_tokens")
-                .select("*, supply_chain_nodes(id, name, organization_id, organizations(name))")
+                .select("*, supply_chain_nodes(id, name, organization_id, partner_org_id, organizations!fk_nodes_org(name))")
                 .eq("token", token)
                 .eq("is_revoked", False)
                 .single()
@@ -189,6 +189,7 @@ class HeartbeatService:
             node_name=node.get("name", "Unknown Node"),
             organization_id=str(node.get("organization_id", "")),
             organization_name=org.get("name", "Unknown Org"),
+            partner_org_id=node.get("partner_org_id"),
         )
 
     # ------------------------------------------------------------------
@@ -353,14 +354,18 @@ class HeartbeatService:
         now_iso = datetime.now(timezone.utc).isoformat()
         msg_id = str(uuid.uuid4())
 
+        # If the supplier is unregistered, their partner_org_id is null.
+        # We must use a separate dummy org id to satisfy sender_org_id != recipient_org_id.
+        external_org_id = validation.partner_org_id or "ffffffff-ffff-ffff-ffff-ffffffffffff"
+
         # 3a. INSERT message with parsed data
         supabase.table("messages").insert({
             "id": msg_id,
-            "sender_org_id": org_id,
+            "sender_org_id": external_org_id,
             "recipient_org_id": org_id,
             "node_id": node_id,
-            "content": message_text,
-            "message_type": "supplier_chat",
+            "body": message_text,
+            "subject": "supplier_chat",
             "parsed_data": {
                 "status": parsed.status,
                 "latency_hours": parsed.latency_hours,
@@ -384,20 +389,24 @@ class HeartbeatService:
         ).eq("id", node_id).execute()
 
         # 3c. INSERT telemetry_events
-        supabase.table("telemetry_events").insert({
-            "id": str(uuid.uuid4()),
-            "node_id": node_id,
-            "organization_id": org_id,
-            "event_type": "heartbeat",
-            "payload": {
-                "source": "supplier_chat",
-                "status": parsed.status,
-                "latency_hours": parsed.latency_hours,
-                "reason": parsed.reason,
-                "confidence": parsed.confidence,
-                "raw_message": message_text[:200],
-            },
-        }).execute()
+        # NOTE: chk_tel_event_type constraint allows: status_update, location_update, crisis
+        try:
+            supabase.table("telemetry_events").insert({
+                "id": str(uuid.uuid4()),
+                "node_id": node_id,
+                "organization_id": org_id,
+                "event_type": "status_update",
+                "payload": {
+                    "source": "supplier_chat",
+                    "status": parsed.status,
+                    "latency_hours": parsed.latency_hours,
+                    "reason": parsed.reason,
+                    "confidence": parsed.confidence,
+                    "raw_message": message_text[:200],
+                },
+            }).execute()
+        except APIError as exc:
+            logger.warning("Telemetry insert failed (non-fatal): %s", exc)
 
         # 3d. INSERT communication_logs
         supabase.table("communication_logs").insert({
@@ -487,8 +496,8 @@ class HeartbeatService:
                 "sender_org_id": org_id,
                 "recipient_org_id": org_id,
                 "node_id": node_id,
-                "content": message_text,
-                "message_type": "oem_dispatch",
+                "body": message_text,
+                "subject": "oem_dispatch",
                 "created_at": now_iso,
             }).execute()
 
@@ -543,7 +552,7 @@ class HeartbeatService:
         supabase = get_supabase_client()
         resp = (
             supabase.table("messages")
-            .select("id, content, message_type, parsed_data, parse_confidence, created_at")
+            .select("id, body, subject, parsed_data, parse_confidence, created_at")
             .eq("node_id", node_id)
             .order("created_at", desc=False)
             .limit(limit)
@@ -552,7 +561,7 @@ class HeartbeatService:
 
         entries = []
         for row in resp.data or []:
-            msg_type = row.get("message_type", "text")
+            msg_type = row.get("subject", "text")
             sender_map = {
                 "supplier_chat": "supplier",
                 "oem_dispatch": "oem",
@@ -561,7 +570,7 @@ class HeartbeatService:
             entries.append(ChatHistoryEntry(
                 id=row["id"],
                 sender_type=sender_map.get(msg_type, "system"),
-                content=row.get("content", ""),
+                content=row.get("body", ""),
                 parsed_data=row.get("parsed_data") or {},
                 parse_confidence=row.get("parse_confidence") or 0.0,
                 created_at=row.get("created_at", ""),

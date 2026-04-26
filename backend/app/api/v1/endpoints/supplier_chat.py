@@ -25,7 +25,7 @@ router = APIRouter(tags=["supplier"])
 logger = logging.getLogger(__name__)
 
 # Path to the static PWA file
-_STATIC_DIR = Path(__file__).resolve().parents[3] / "static"
+_STATIC_DIR = Path(__file__).resolve().parents[4] / "static"
 _CHAT_HTML = _STATIC_DIR / "supplier_chat.html"
 
 

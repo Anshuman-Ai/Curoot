@@ -20,6 +20,7 @@ def test_insert():
         "id": db_id,
         "organization_id": org_id,
         "name": "Test Node",
+        "display_name": "Test Node",
         "node_type": "supplier",
         "status": "operational",
         "location": f"POINT(120.0 30.0)",

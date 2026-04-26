@@ -48,6 +48,7 @@ class MagicLinkValidation(BaseModel):
     node_name: Optional[str] = None
     organization_id: Optional[str] = None
     organization_name: Optional[str] = None
+    partner_org_id: Optional[str] = None
     error: Optional[str] = None
 
 
