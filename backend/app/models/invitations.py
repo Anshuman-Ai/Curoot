@@ -15,3 +15,4 @@ class DirectInviteResponse(BaseModel):
     node_id: str
     status: str
     message: str
+    expires_at: Optional[str] = None

@@ -53,7 +53,7 @@ To initiate any network expansion, the user clicks the floating `[+]` button on 
 If the user needs to find a new supplier, they use the search bar and radius sliders within the modal. The system executes a strict, cost-optimized hierarchy:
 * **Priority 1 (Active Platform Network):** Instantly pulls matching local/global nodes already active on the platform.
 * **Priority 2 (Community Ecosystem):** Pulls structured supplier data from community templates (requires a "Pending" cooldown to activate).
-* **Priority 3 (Google Maps Fallback):** Utilizes the Google Maps free tier to find entirely unregistered businesses in the designated radius.
+* **Priority 3 (OpenStreetMap Fallback):** Utilizes the OpenStreetMap (OSM/Nominatim) API to find entirely unregistered businesses in the designated radius.
 * *Local Caching:* External API queries (Priority 3) act as one-time pull requests, caching up to two alternative nodes locally for subsequent searches.
 
 **Phase 3: Path B - Direct Invite (Targeted Provisioning)**
@@ -124,7 +124,7 @@ The architecture is specifically engineered for real-time performance, cost-effi
     * **Component Logic Integration:** FastAPI directs standard coordinate and status updates directly to the database via a Smart Router, intentionally bypassing the LLM to save compute. It houses the "Dark Node" predictive engine, calculating dynamic risk scores based on relational impact, historical reliability, and macro-environmental fusion. Pydantic acts as a Universal Filter, stripping unauthorized keys from incoming payloads.
 * **Layer 3: State, Auth, Caching & Data Sovereignty**
     * **Core Framework:** Supabase (PostgreSQL + WebSockets) & SQLite.
-    * **Component Logic Integration:** Supabase manages the master schema and real-time updates. It acts as the system's "Nervous System," utilizing Webhooks for "One Stone, Multiple Birds" execution; when a JSON payload from the supplier's PWA updates the `node_data` table, the webhook instantly fans out to update visual canvas states and recalculate the 1-Hop graph logic. PostgreSQL architecture enforces the strict "1-Hop" boundary for commercial privacy. SQLite acts as a local cache for Google Maps API queries and a "Shock Absorber" inside client MCP containers.
+    * **Component Logic Integration:** Supabase manages the master schema and real-time updates. It acts as the system's "Nervous System," utilizing Webhooks for "One Stone, Multiple Birds" execution; when a JSON payload from the supplier's PWA updates the `node_data` table, the webhook instantly fans out to update visual canvas states and recalculate the 1-Hop graph logic. PostgreSQL architecture enforces the strict "1-Hop" boundary for commercial privacy. SQLite acts as a local cache for OpenStreetMap API queries and a "Shock Absorber" inside client MCP containers.
 * **Layer 4: Intelligence, Edge Connectivity & External Integrations**
     * **Core AI Agent:** Google Vertex AI / Gemini 1.5 Flash (Free Tier).
     * **Component Logic Integration:** This multimodal AI runs NLP and OCR on unstructured data dumps for cold-start onboarding. It also powers the lightweight local parsing function that evaluates natural language responses from the conversational Magic Link interface, translating text (e.g., *"delayed by 2 days"*) into strict schema updates prior to database commitment.

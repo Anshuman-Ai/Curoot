@@ -312,6 +312,7 @@ async def generate_mcp_container(spec: MCPSpecRequest):
                 "source_type": "mcp_continuous_sync",
                 "source_ref": f"{spec.db_type}://{spec.ip_address}/{spec.table_name}",
                 "status": "active",
+                "track": "mcp_continuous_sync",
             }
         ).execute()
         supabase.table("mcp_containers").insert(

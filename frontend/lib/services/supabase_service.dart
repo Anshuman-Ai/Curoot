@@ -87,6 +87,33 @@ class SupabaseService {
     return channel;
   }
 
+  // --- Module 2.5: Disruption Alerts (L2 fix — live push instead of polling) ---
+
+  /// Subscribe to disruption alert broadcasts for the org's canvas
+  RealtimeChannel streamDisruptionAlerts(
+    String organizationId,
+    void Function(dynamic payload) onDisruptionAlert,
+    void Function(dynamic payload) onMacroUpdate,
+    void Function(dynamic payload) onUpstreamAlert,
+  ) {
+    final alertChannel = client.channel('org:$organizationId:alerts');
+    alertChannel
+      .onBroadcast(event: 'disruption_alert', callback: onDisruptionAlert)
+      .subscribe();
+
+    final macroChannel = client.channel('org:$organizationId:macro-panel');
+    macroChannel
+      .onBroadcast(event: 'macro_update', callback: onMacroUpdate)
+      .subscribe();
+
+    final upstreamChannel = client.channel('org:$organizationId:upstream-alerts');
+    upstreamChannel
+      .onBroadcast(event: 'upstream_alert', callback: onUpstreamAlert)
+      .subscribe();
+
+    return alertChannel; // Primary channel returned for lifecycle management
+  }
+
   // --- Module 2.7: Heartbeat ---
 
   /// Subscribe to the org's heartbeat broadcast channel for live chat updates

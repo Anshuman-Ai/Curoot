@@ -164,6 +164,7 @@ class CanvasNotifier extends Notifier<CanvasState> {
   RealtimeChannel? _realtimeChannel;
   RealtimeChannel? _edgesRealtimeChannel;
   RealtimeChannel? _heartbeatChannel;
+  RealtimeChannel? _disruptionChannel;
   Timer? _debounce;
 
   @override
@@ -172,6 +173,7 @@ class CanvasNotifier extends Notifier<CanvasState> {
       _realtimeChannel?.unsubscribe();
       _edgesRealtimeChannel?.unsubscribe();
       _heartbeatChannel?.unsubscribe();
+      _disruptionChannel?.unsubscribe();
       _debounce?.cancel();
     });
 
@@ -299,6 +301,14 @@ class CanvasNotifier extends Notifier<CanvasState> {
         _handleHeartbeatUpdate,
         _handleOemDispatch,
         _handleAutoPing,
+      );
+
+      // Setup Realtime for disruption alerts (Module 2.5 — L2 fix)
+      _disruptionChannel = supabase.streamDisruptionAlerts(
+        kFrontendDefaultOrgId,
+        _handleDisruptionAlert,
+        _handleMacroUpdate,
+        _handleUpstreamAlert,
       );
     } catch (e) {
       debugPrint('Error initializing canvas data: $e');
@@ -474,6 +484,55 @@ class CanvasNotifier extends Notifier<CanvasState> {
         nodes: state.nodes.where((n) => n.id != id).toList(),
       );
     }
+  }
+
+  // --- Module 2.5: Disruption Alert Realtime handlers (L2 fix) ---
+
+  void _handleDisruptionAlert(dynamic payload) {
+    final data = payload is Map ? payload : {};
+    final nodeIds = List<String>.from(data['node_ids'] ?? []);
+    final severity = data['severity']?.toString() ?? 'medium';
+    if (nodeIds.isEmpty) return;
+
+    debugPrint('[Disruption] Alert received: severity=$severity, nodes=$nodeIds');
+    final newStatus = (severity == 'critical' || severity == 'high')
+        ? NodeStatus.delayed
+        : NodeStatus.active;
+
+    state = state.copyWith(
+      nodes: state.nodes.map((n) {
+        if (nodeIds.contains(n.id)) {
+          return n.copyWith(status: newStatus);
+        }
+        return n;
+      }).toList(),
+    );
+  }
+
+  void _handleMacroUpdate(dynamic payload) {
+    debugPrint('[Macro] Update received: $payload');
+    // Macro updates are consumed by the disruption_provider,
+    // no canvas state change needed here.
+  }
+
+  void _handleUpstreamAlert(dynamic payload) {
+    final data = payload is Map ? payload : {};
+    final targetNodeId = data['target_node_id']?.toString() ?? '';
+    final abstracted = data['abstracted_payload'] as Map<String, dynamic>?;
+    if (targetNodeId.isEmpty) return;
+
+    debugPrint('[Upstream] Abstracted alert for node $targetNodeId');
+    state = state.copyWith(
+      nodes: state.nodes.map((n) {
+        if (n.id == targetNodeId) {
+          return n.copyWith(
+            status: NodeStatus.delayed,
+            abstractedPayload: abstracted,
+          );
+        }
+        return n;
+      }).toList(),
+    );
   }
 
   // --- Module 2.7: Heartbeat Realtime handlers ---
