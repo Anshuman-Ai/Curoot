@@ -130,6 +130,19 @@ All three tracks of the Omni Ingestion gateway are fully implemented and tested:
 - **Hierarchical Discovery (Tier 1-3):** Implemented radius-aware search for Active, Community, and OSM cached nodes.
 - **Multi-Channel Dispatch:** Created invite workflows natively supporting Email and WhatsApp routing, generating tracking links directly on the canvas.
 
+### 16. Zero-Knowledge Abstraction Engine (SRS §2.4) ✅ COMPLETE
+- **Downstream Alert Propagation:** Implemented a multi-tenant "Zero-Knowledge" system to propagate disruption data without exposing PII or sensitive supplier relationships.
+- **Data Flow:** `disruption_alerts` → `downstream_alerts` (abstracted) → `supply_chain_nodes` (cascade delay update).
+- **Privacy Enforcement:** Tier-2+ suppliers are represented as abstracted payloads for downstream partners, ensuring competitive intelligence sovereignty.
+
+### 17. Tradeoff Engine Refinement ✅ COMPLETE
+- **Schema Parity:** Renamed `metric` to `metric_type` and added `current_value`, `alternative_value`, and `delta` to `tradeoff_metrics` to support detailed comparison.
+- **Structured Outputs:** Gemini 1.5 Flash now produces consistent, typed recommendations with confidence scores, reducing frontend parsing errors.
+
+### 18. Heartbeat & Dark Node Integration ✅ COMPLETE
+- **Health Monitoring:** `heartbeat_service.py` monitors node silence and triggers automated pings.
+- **Dark Node Scoring:** `is_dark_node` and `heartbeat_confidence` are now dynamically updated based on telemetry frequency and macro-environment risk fusion.
+
 ---
 
 ## 🎨 Design System Tokens
@@ -147,5 +160,5 @@ Curoot enforces a highly customized, premium "dark mode" industrial aesthetic:
 - **Multiplayer Cursor Presence:** Track and render other team members' mouse cursors on the canvas in real-time via Supabase Presence channels.
 - **MCP Kill-Switch API:** Build the backend endpoint that terminates active ERP sync containers on demand from the Settings dashboard.
 - **Authentication Polishing:** Ensure the Supabase Session handoff efficiently routes unauthenticated users back to the Login Page.
-- **Supabase Migration Deployment:** Run `supabase db push` to apply the initial schema and `ui_x`/`ui_y` migration to the production instance.
-- **AI Model Upgrade Path:** Upgrade from Gemini 1.5 Flash (free tier) to Gemini 2.5 Pro by changing `MODEL_NAME` in `ai_service.py` when ready.
+- **Downstream Alerts UI:** Create a dedicated "Privacy-Safe" view in the right panel for abstracted alerts originating from Tier-2+ suppliers.
+- **AI Model Upgrade Path:** Upgrade from Gemini 1.5 Flash (free tier) to Gemini 2.0 Pro (or latest) by changing `MODEL_NAME` in `ai_service.py` when ready.

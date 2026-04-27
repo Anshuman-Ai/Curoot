@@ -84,6 +84,12 @@ partner_org_id → organizations.id (nullable)
 Fields of Interest:
 - `ui_x`, `ui_y` (decoupled visual coordinates)
 - `country_code` (for macro environment mapping)
+- `is_dark_node` (Boolean flag for silent/high-risk nodes)
+- `heartbeat_confidence` (0.0 to 1.0)
+- `last_heartbeat_at` (Last successful response)
+- `status` (operational, pending, delayed, offline)
+- `volume_weight`, `transport_mode`, `cascade_delay_hours`
+- `abstracted_payload` (JSONB for 1-hop privacy)
 
 Relationships:
 
@@ -100,6 +106,9 @@ FKs:
 organization_id → organizations.id
 source_node_id → supply_chain_nodes.id
 target_node_id → supply_chain_nodes.id
+
+Fields of Interest:
+- `edge_type` (default: 'supplies_to')
 
 Cardinality:
 
@@ -158,6 +167,10 @@ FKs:
 
 organization_id → organizations.id
 
+Fields of Interest:
+- `source_type` (cold_start, mcp_sync, push_api)
+- `source_ref` (External file name or API ID)
+
 Relationships:
 
 1 → 1 mcp_containers
@@ -192,6 +205,7 @@ organization_id → organizations.id
 
 Features:
 - Submits `abstracted_payload` for Zero-Knowledge Tier-2+ disruptions
+- `payload` (JSONB) stores AI-classified alert data
 
 Rule:
 
@@ -203,6 +217,11 @@ No direct FK relationships
 Linked logically via:
 
 country_code
+
+Fields of Interest:
+- `risk_level` (low, medium, high, critical)
+- `confidence`, `primary_driver`, `signals_summary`
+- `payload`, `raw_data`
 4.14 tradeoff_analyses
 
 FKs:
@@ -211,6 +230,7 @@ organization_id → organizations.id
 current_node_id → supply_chain_nodes.id
 alternative_node_id → supply_chain_nodes.id
 disruption_alert_id → disruption_alerts.id
+initiated_by → organizations.id
 
 Key Fields:
 - `overall_recommendation` (switch/stay)
@@ -225,9 +245,13 @@ FKs:
 
 analysis_id → tradeoff_analyses.id
 
+Fields of Interest:
+- `metric_type` (renamed from `metric`)
+- `current_value`, `alternative_value`, `delta`
+
 Constraint:
 
-One row per metric type per analysis
+One row per metric_type per analysis
 4.16 messages
 
 FKs:
@@ -235,6 +259,10 @@ FKs:
 sender_org_id → organizations.id
 recipient_org_id → organizations.id
 node_id → supply_chain_nodes.id (optional)
+
+Fields of Interest:
+- `body`, `subject`
+- `parsed_data`, `parse_confidence` (NLP output)
 4.17 communication_logs
 
 FKs:
@@ -257,7 +285,18 @@ Constraints:
 
 Unique token
 is_revoked boolean flag
-4.19 audit.audit_log
+4.19 downstream_alerts (Zero-Knowledge Abstraction)
+
+FKs:
+
+source_alert_id → disruption_alerts.id
+source_org_id → organizations.id
+target_org_id → organizations.id
+
+Purpose:
+- Handles private data sharing across the supply chain graph.
+- Propagates delay data (`cascade_delay_hours`) without exposing internal supplier details.
+4.20 audit.audit_log
 
 FKs (logical, not enforced):
 
