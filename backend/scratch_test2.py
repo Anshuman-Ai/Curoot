@@ -2,11 +2,19 @@ import os
 import uuid
 import json
 from supabase import create_client
+from dotenv import load_dotenv
 
-os.environ['SUPABASE_URL'] = 'https://cwukaaexndumfivzjctw.supabase.co'
-os.environ['SUPABASE_SERVICE_ROLE_KEY'] = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN3dWthYWV4bmR1bWZpdnpqY3R3Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NTc2MDg1MywiZXhwIjoyMDkxMzM2ODUzfQ.-ZWk__IICb0MaA6ddW9IjuOGXIkcdp6yyBs7LJxAeJA'
+# Load environment variables from .env
+load_dotenv()
 
-supabase = create_client(os.environ['SUPABASE_URL'], os.environ['SUPABASE_SERVICE_ROLE_KEY'])
+SUPABASE_URL = os.getenv('SUPABASE_URL')
+SUPABASE_KEY = os.getenv('SUPABASE_SERVICE_ROLE_KEY')
+
+if not SUPABASE_URL or not SUPABASE_KEY:
+    print("Error: SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY not found in environment.")
+    exit(1)
+
+supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 org_id = '00000000-0000-0000-0000-000000000000' # From the old terminal log
 node_id = '9249f7f9-7019-4f0d-8649-4f526ccaa60a'

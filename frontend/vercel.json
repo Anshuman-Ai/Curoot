@@ -1,0 +1,11 @@
+{
+  "version": 2,
+  "public": true,
+  "name": "curoot-frontend",
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/index.html" }
+  ],
+  "installCommand": "flutter/bin/flutter build web --release",
+  "buildCommand": "flutter/bin/flutter build web --release",
+  "outputDirectory": "build/web"
+}
